@@ -13,16 +13,18 @@
 #include <vector>
 
 // Order 1
-#define TETRAHEDRON_1   0
-#define HEXAHEDRON_1    1
-#define PRISM3_1        2
-#define PYRAMID4_1      3
+#define TETRAHEDRON_1       0
+#define HEXAHEDRON_1        1
+#define PRISM3_1            2
+#define PYRAMID4_1          3
 
 // Order 2
-#define TETRAHEDRON_2   4
-#define HEXAHEDRON_2    5
-#define PRISM3_2        6
-#define PYRAMID4_2      7
+#define TETRAHEDRON_2       4
+#define HEXAHEDRON_2        5  //Hexahderon with 20 nodes (quadratic)
+#define PRISM3_2            6
+#define PYRAMID4_2          7
+#define HEXAHEDRON_2_FULL   8  //Hexahderon with 27 nodes (full quadratic) 
+
 
 
 

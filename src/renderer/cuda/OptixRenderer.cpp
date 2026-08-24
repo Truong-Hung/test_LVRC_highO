@@ -288,9 +288,22 @@ void OptixRenderer::triangularizeMesh()
                 meshTrianglesVertexData.push_back(currentTriangle);
                 break;
 
-            // Second order square
+            // Second order square (8 vertices, Hex20 face)
             case 8:
                 // Two triangle
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                break;
+
+            // Second order full square (9 vertices, Hex27 face)
+            case 9:
+                // Two triangle using corner vertices (indices 0, 2, 4, 6)
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
@@ -402,6 +415,8 @@ void OptixRenderer::render()
     launchData.minSamplePeriod = minSamplePeriod;
     launchData.maxSamplePeriod = maxSamplePeriod;
     launchData.interpolationStrategy = interpolationStrategy;
+    launchData.tfMin = transferFunctions[currentAttribute].get_min();
+    launchData.tfMax = transferFunctions[currentAttribute].get_max();
 
     // Use the already mapped PBO pointer
     float4 *d_image = launchData.image;
@@ -938,6 +953,7 @@ void OptixRenderer::buildSBT()
     pyramid5DataBuffer.alloc_and_upload(mesh->cells_[PYRAMID5], "Pyramid5");
     tetrahedron10DataBuffer.alloc_and_upload(mesh->cells_[TETRAHEDRON10], "Tetrahedron10");
     hexahedron20DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON20], "Hexahedron20");
+    hexahedron27DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON_2_FULL], "Hexahedron27");
     
     // Upload boxes data
     maxOpacitiesDataBuffer.alloc_and_upload(boxes.maxOpacities_[0], "Boxes max opacities");
@@ -955,6 +971,7 @@ void OptixRenderer::buildSBT()
     rayGenData.data.mesh.cells.pyramids5 = (Pyramid5*) pyramid5DataBuffer.d_pointer();
     rayGenData.data.mesh.cells.tetrahedrons10 = (Tetrahedron10*) tetrahedron10DataBuffer.d_pointer();
     rayGenData.data.mesh.cells.hexahedrons20 = (Hexahedron20*) hexahedron20DataBuffer.d_pointer();
+    rayGenData.data.mesh.cells.hexahedrons27 = (Hexahedron27*) hexahedron27DataBuffer.d_pointer();
     rayGenData.data.boxes.maxOpacities = (float*) maxOpacitiesDataBuffer.d_pointer();
     rayGenData.data.boxes.dataVariances = (float*) dataVariancesDataBuffer.d_pointer();
 

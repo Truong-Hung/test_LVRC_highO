@@ -85,7 +85,7 @@ message(STATUS "Done")
 if(OPTIX)
     enable_language(CUDA)
 
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3 -res-usage -gencode arch=compute_86,code=sm_86 --ptx)
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3 -res-usage -gencode arch=compute_86,code=sm_86 --ptx -allow-unsupported-compiler -ccbin /usr/bin/g++-11)
     set(CMAKE_CUDA_ARCHITECTURES "86")
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 

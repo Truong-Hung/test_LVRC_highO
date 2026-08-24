@@ -207,6 +207,8 @@ int CustomUMESHReader::nb_vertices_cell_type(uint32_t msh_cell_type)
         return 10;
     case HEXAHEDRON_2:
         return 20;
+    case HEXAHEDRON_2_FULL:
+        return 27;
     case PRISM3_2:
         return 15;
     case PYRAMID4_2:

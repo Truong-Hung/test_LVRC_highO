@@ -9,7 +9,7 @@
 
 #include "mesh/Cell.hpp"
 
-const uint32_t Cell::number_of_cell_types_ = 8;
+const uint32_t Cell::number_of_cell_types_ = 9;
 
 const std::vector<std::string> Cell::names_ =
 {
@@ -20,7 +20,8 @@ const std::vector<std::string> Cell::names_ =
     "Tetrahedron (order 2)",
     "Hexahedron (order 2)",
     "Prism-3 (order 2)",
-    "Pyramid-4 (order 2)"
+    "Pyramid-4 (order 2)",
+    "Hexahedron (order 2, full)"
 };
 
 const std::vector<std::string> Cell::file_suffixes_ =
@@ -32,7 +33,8 @@ const std::vector<std::string> Cell::file_suffixes_ =
     ".tetra_2",
     ".hexa_2",
     ".prism3_2",
-    ".pyramid4_2"
+    ".pyramid4_2",
+    ".hexa27_2"
 };
 
 const std::vector<uint32_t> Cell::number_of_vertices_ =
@@ -44,7 +46,8 @@ const std::vector<uint32_t> Cell::number_of_vertices_ =
     10, // TETRAHEDRON_2
     20, // HEXAHEDRON_2
     15, // PRISM3_2
-    13  // PYRAMID4_2
+    13, // PYRAMID4_2
+    27  // HEXAHEDRON_2_FULL
 };
 
 const std::vector<uint32_t> Cell::number_of_faces_ =
@@ -56,7 +59,8 @@ const std::vector<uint32_t> Cell::number_of_faces_ =
     4,  // TETRAHEDRON_2
     6,  // HEXAHEDRON_2
     5,  // PRISM3_2
-    5   // PYRAMID4_2
+    5,  // PYRAMID4_2
+    6   // HEXAHEDRON_2_FULL
 };
 
 //!!!! IF YOU MODIFY THIS PLEASE CHANGE IT ALSO IN scripts/generate_utils.py
@@ -117,7 +121,15 @@ const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_masks_ =
      {0, 7, 4, 12, 3, 6},
      {1, 8, 2, 11, 4, 9},
      {2, 10, 3, 12, 4, 11},
-     {0, 6, 3, 10, 2, 8, 1, 5}}
+     {0, 6, 3, 10, 2, 8, 1, 5}},
+
+    // HEXAHEDRON_2_FULL (27 nodes)
+    {{0, 9, 3, 13, 2, 11, 1, 8, 20},
+     {0, 10, 4, 17, 7, 15, 3, 9, 22},
+     {0, 8, 1, 12, 5, 16, 4, 10, 21},
+     {1, 11, 2, 14, 6, 18, 5, 12, 23},
+     {2, 13, 3, 15, 7, 19, 6, 14, 24},
+     {4, 16, 5, 18, 6, 19, 7, 17, 25}},
 };
 
 const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_sorted_masks_ =
@@ -176,7 +188,15 @@ const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_sorted_masks_ =
      {0, 1, 4, 5, 7, 9},
      {0, 3, 4, 6, 7, 12},
      {1, 2, 4, 8, 9, 11},
-     {2, 3, 4, 10, 11, 12}}
+     {2, 3, 4, 10, 11, 12}},
+
+     // HEXAHEDRON_2_FULL (27)
+     {{0, 1, 2, 3, 8, 9, 11, 13, 20},
+     {0, 1, 4, 5, 8, 10, 12, 16, 21},
+     {0, 3, 4, 7, 9, 10, 15, 17, 22},
+     {1, 2, 5, 6, 11, 12, 14, 18, 23},
+     {2, 3, 6, 7, 13, 14, 15, 19, 24},
+     {4, 5, 6, 7, 16, 17, 18, 19, 25}}
 };
 
 const std::vector<std::vector<uint32_t>> Cell::face_mask_permutation_ =
@@ -196,7 +216,9 @@ const std::vector<std::vector<uint32_t>> Cell::face_mask_permutation_ =
      // PRISM3_2
      {0,3,2,4,1},
      // PYRAMID4_2
-     {4,0,1,2,3}
+     {4,0,1,2,3},
+     // HEXAHEDRON_2_FULL
+     {0,2,1,3,4,5}
 };
 
 const uint32_t Cell::max_number_of_faces_ = *std::max_element(Cell::number_of_faces_.cbegin(), Cell::number_of_faces_.cend());

@@ -14,6 +14,7 @@
 #define HEXAHEDRON20    5
 #define PRISM15         6
 #define PYRAMID13       7
+#define HEXAHEDRON27    8
 
 
 
@@ -56,6 +57,12 @@ struct Hexahedron20
     unsigned int vertices[20];
 };
 
+// Hexahedron20 vertex indices
+struct Hexahedron27
+{
+    unsigned int vertices[27];
+};
+
 // Tetrahedron10 vertex indices
 struct Tetrahedron10
 {
@@ -71,6 +78,7 @@ struct Cells
     Pyramid5* pyramids5;
     Tetrahedron10* tetrahedrons10;
     Hexahedron20* hexahedrons20;
+    Hexahedron27* hexahedrons27;
     // Prism15* prisms15;
     // Pyramid13* pyramids13;  
 };
@@ -126,6 +134,8 @@ struct LaunchData
 
     // Transfer function
     cudaTextureObject_t transferFunction;
+    float tfMin;   // Data window minimum (normalized, default 0)
+    float tfMax;   // Data window maximum (normalized, default 1)
 
     // Renderer parameters
     float alphaThreshold;
@@ -138,9 +148,6 @@ struct LaunchData
 
     // Interpolation
     float *leastSquaresMatrix;   // Hex20: 10x20 left pseudo-inverse
-    float *tet4Matrix;           // Tet4:  10x4  right pseudo-inverse
-    float *hex8Matrix;           // Hex8:  10x8  right pseudo-inverse
-    float *tet10Matrix;          // Tet10: 10x10 pseudo-inverse
     int interpolationStrategy; // 0: Linear, 1: High-Order, 2: Difference
 
     // Traversable handles

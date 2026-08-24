@@ -180,6 +180,22 @@ int TransferFunction::draw(const char* label, const ImVec2& size)
         ImGui::EndCombo();
     }
 
+    // --- Data range (min/max window) ---
+    bool rangeChanged = false;
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    rangeChanged = ImGui::DragFloatRange2(
+        "##tfrange",
+        &min, &max,
+        0.005f,       // drag speed
+        0.0f, 1.0f,   // global clamp
+        "Min: %.3f", "Max: %.3f");
+    if (rangeChanged) {
+        if (min > max - 0.01f) min = max - 0.01f;
+        if (min < 0.f) min = 0.f;
+        if (max > 1.f) max = 1.f;
+    }
+
+
     // Draw the editor
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -264,7 +280,7 @@ int TransferFunction::draw(const char* label, const ImVec2& size)
         regenerateSamples();
     }
 
-    return changed || presetChanged;
+    return changed || presetChanged || rangeChanged;
 }
 
 void TransferFunction::regenerateSamples()

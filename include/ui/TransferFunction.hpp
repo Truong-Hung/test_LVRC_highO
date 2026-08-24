@@ -46,6 +46,8 @@ public:
     [[nodiscard]] float get_iso_normalized() const { return (iso_value - min) / (max - min); }
     [[nodiscard]] float get_min() const { return min; }
     [[nodiscard]] float get_max() const { return max; }
+    void set_min(float v) { min = v; }
+    void set_max(float v) { max = v; }
 
     void generateHistogram(std::vector<std::vector<float>>& datas);
     void regenerateSamples();

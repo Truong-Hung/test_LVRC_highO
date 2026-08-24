@@ -298,8 +298,10 @@ uint32_t CustomMSHReader::convert_cell_type(uint32_t msh_cell_type)
             return PYRAMID4_1;
         case 11:
             return TETRAHEDRON_2;
+        case 12: 
+            return HEXAHEDRON_2_FULL;  // Hex27 full
         case 17:
-            return HEXAHEDRON_2;
+            return HEXAHEDRON_2;    // Hex20 serendipity
         case 18:
             return PRISM3_2;
         case 19:

@@ -145,8 +145,13 @@ extern "C" __global__ void __raygen__launch()
                             launchData.leastSquaresMatrix,
                             launchData.interpolationStrategy);
 
-                        // Sample the transfer function
-                        sampledColor = tex1D<float4>(launchData.transferFunction, sampledValue);
+                        // Sample the transfer function (apply data window [tfMin, tfMax])
+                        float tfRange = launchData.tfMax - launchData.tfMin;
+                        float tfCoord = (tfRange > 1e-6f)
+                            ? (sampledValue - launchData.tfMin) / tfRange
+                            : 0.f;
+                        tfCoord = fmaxf(0.f, fminf(1.f, tfCoord));
+                        sampledColor = tex1D<float4>(launchData.transferFunction, tfCoord);
 
                         // Color accumulation
                         sampledColor.w = 1.f - pow(1.f - sampledColor.w, step);
