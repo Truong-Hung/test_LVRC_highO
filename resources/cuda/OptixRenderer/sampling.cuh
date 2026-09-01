@@ -16,16 +16,10 @@ static __forceinline__ __device__ float sample(
             mesh->vertices[cell.vertices[1]], mesh->datas[cell.vertices[1]],
             mesh->vertices[cell.vertices[2]], mesh->datas[cell.vertices[2]],
             mesh->vertices[cell.vertices[3]], mesh->datas[cell.vertices[3]],
-            mesh->vertices[cell.vertices[4]], mesh->datas[cell.vertices[4]],
-            mesh->vertices[cell.vertices[5]], mesh->datas[cell.vertices[5]],
-            mesh->vertices[cell.vertices[6]], mesh->datas[cell.vertices[6]],
-            mesh->vertices[cell.vertices[7]], mesh->datas[cell.vertices[7]],
-            mesh->vertices[cell.vertices[8]], mesh->datas[cell.vertices[8]],
-            mesh->vertices[cell.vertices[9]], mesh->datas[cell.vertices[9]],
             samplePoint);
     }
     else if (strategy == 1) {
-        return serendipityInterpolation(
+        return lagrangeInterpolationTet10(
             mesh->vertices[cell.vertices[0]], mesh->datas[cell.vertices[0]],
             mesh->vertices[cell.vertices[1]], mesh->datas[cell.vertices[1]],
             mesh->vertices[cell.vertices[2]], mesh->datas[cell.vertices[2]],
@@ -46,7 +40,7 @@ static __forceinline__ __device__ float sample(
             mesh->vertices[cell.vertices[3]], mesh->datas[cell.vertices[3]],
             samplePoint);
 
-        float valHighOrder = serendipityInterpolation(
+        float valHighOrder = lagrangeInterpolationTet10(
             mesh->vertices[cell.vertices[0]], mesh->datas[cell.vertices[0]],
             mesh->vertices[cell.vertices[1]], mesh->datas[cell.vertices[1]],
             mesh->vertices[cell.vertices[2]], mesh->datas[cell.vertices[2]],

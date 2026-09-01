@@ -26,7 +26,7 @@ __device__ __constant__ int TET4_NODE_IJKL[4][4] = {
 
 __device__ __constant__ int TET10_NODE_IJKL[10][4] = {
     {2,0,0,0},{0,2,0,0},{0,0,2,0},{0,0,0,2},
-    {1,1,0,0},{0,1,1,0},{1,0,1,0},{1,0,0,1},{0,1,0,1},{0,0,1,1}
+    {1,1,0,0},{0,1,1,0},{1,0,1,0},{1,0,0,1},{0,0,1,1},{0,1,0,1}
 };
 
 __device__ __constant__ int TET20_NODE_IJKL[20][4] = {
@@ -132,9 +132,6 @@ static __forceinline__ __device__ void hexNShapeFunctionsDerivatives(
     }
 }
 
-// ============================================================================
-// Generic Hex world -> reference mapping (Newton-Raphson), N-node version
-// ============================================================================
 
 static __forceinline__ __device__ float3 getHexNReferencePoint(
     const float3* verts, const int nodeIJK[][3],
@@ -365,15 +362,24 @@ static __forceinline__ __device__ float lagrangeInterpolationTet4(
     return result;
 }
 
+
 // ---------------------------------------------------------------------------
-// Tet10 Interpolation (order 2)
+// Tet10 Interpolation (order 2), generic Lagrange basis
 // ---------------------------------------------------------------------------
 static __forceinline__ __device__ float lagrangeInterpolationTet10(
-    float3* verts, float* data, float3 samplePoint)
+    float3 v0,  float d0,  float3 v1,  float d1,  float3 v2,  float d2,  float3 v3,  float d3,
+    float3 v4,  float d4,  float3 v5,  float d5,  float3 v6,  float d6,  float3 v7,  float d7,
+    float3 v8,  float d8,  float3 v9,  float d9,
+    float3 samplePoint)
 {
+    float3 verts[10] = { v0,v1,v2,v3,v4,v5,v6,v7,v8,v9 };
+    float data[10]   = { d0,d1,d2,d3,d4,d5,d6,d7,d8,d9 };
+
     float4 bary = getTetNReferencePoint(verts, TET10_NODE_IJKL, BARY_NODES_ORDER2, 3, 10, samplePoint);
+
     float N[10];
     tetNShapeFunctions(bary.x, bary.y, bary.z, bary.w, TET10_NODE_IJKL, BARY_NODES_ORDER2, 3, 10, N);
+
     float result = 0.f;
     for (int m = 0; m < 10; ++m) result += N[m] * data[m];
     return result;
@@ -714,7 +720,7 @@ static __forceinline__ __device__ float lagrangeInterpolation(
         d19*(0.25f*(1.f - g)*(1.f + g)*(1.f + h)*(1.f + r));
 }
 
-static __forceinline__ __device__ void tet10ShapeFunctions(
+/* static __forceinline__ __device__ void tet10ShapeFunctions(
     float xi, float eta, float zeta,
     float* N)
 {
@@ -855,18 +861,7 @@ static __forceinline__ __device__ float3 getTet10ReferencePoint(
 // ---------------------------------------------------------------------------
 // Tet10 Serendipity Interpolation — C0-continuous across element boundaries
 // ---------------------------------------------------------------------------
-// Uses the 10 standard Serendipity shape functions N_i(g,h,r) evaluated at the
-// reference coordinates.  The physical → reference map is done with the same
-// monomial Newton-Raphson solver already present in the file.
-//
-// Node ordering (matches mesh file ordering):
-//   Corners (0-7):
-//      0:(-1,-1,-1)  1:(+1,-1,-1)  2:(+1,+1,-1)  3:(-1,+1,-1)   bottom face
-//      4:(-1,-1,+1)  5:(+1,-1,+1)  6:(+1,+1,+1)  7:(-1,+1,+1)   top face
-//   Mid-edge (8-19):
-//      8:( 0,-1,-1)   9:(-1, 0,-1)  10:(-1,-1, 0)  11:(+1, 0,-1)
-//     12:(+1,-1, 0)  13:( 0,+1,-1)  14:(+1,+1, 0)  15:(-1,+1, 0)
-//     16:( 0,-1,+1)  17:(-1, 0,+1)  18:(+1, 0,+1)  19:( 0,+1,+1)
+
 static __forceinline__ __device__ float serendipityInterpolation(
     float3 v0,  float d0,
     float3 v1,  float d1,
@@ -899,7 +894,7 @@ static __forceinline__ __device__ float serendipityInterpolation(
         val += N[i] * data[i];
 
     return val;
-}
+} */
 
 static __forceinline__ __device__ void hex20ShapeFunctions(
     float g, float h, float r, 
