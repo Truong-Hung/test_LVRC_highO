@@ -313,6 +313,15 @@ void OptixRenderer::triangularizeMesh()
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
                 meshTrianglesVertexData.push_back(currentTriangle);
                 break;
+
+            // Third order triangle (10 vertices, Tet20 face)
+            case 10:
+                // One triangle using 3 corner vertices (indices 0, 3, 6)
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                break;
             default:
                 break;
         }
@@ -954,6 +963,7 @@ void OptixRenderer::buildSBT()
     tetrahedron10DataBuffer.alloc_and_upload(mesh->cells_[TETRAHEDRON10], "Tetrahedron10");
     hexahedron20DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON20], "Hexahedron20");
     hexahedron27DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON_2_FULL], "Hexahedron27");
+    tetrahedron20DataBuffer.alloc_and_upload(mesh->cells_[TETRAHEDRON20], "Tetrahedron20");
     
     // Upload boxes data
     maxOpacitiesDataBuffer.alloc_and_upload(boxes.maxOpacities_[0], "Boxes max opacities");
@@ -972,6 +982,7 @@ void OptixRenderer::buildSBT()
     rayGenData.data.mesh.cells.tetrahedrons10 = (Tetrahedron10*) tetrahedron10DataBuffer.d_pointer();
     rayGenData.data.mesh.cells.hexahedrons20 = (Hexahedron20*) hexahedron20DataBuffer.d_pointer();
     rayGenData.data.mesh.cells.hexahedrons27 = (Hexahedron27*) hexahedron27DataBuffer.d_pointer();
+    rayGenData.data.mesh.cells.tetrahedrons20 = (Tetrahedron20*) tetrahedron20DataBuffer.d_pointer();
     rayGenData.data.boxes.maxOpacities = (float*) maxOpacitiesDataBuffer.d_pointer();
     rayGenData.data.boxes.dataVariances = (float*) dataVariancesDataBuffer.d_pointer();
 

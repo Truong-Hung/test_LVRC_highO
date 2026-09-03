@@ -306,6 +306,8 @@ uint32_t CustomMSHReader::convert_cell_type(uint32_t msh_cell_type)
             return PRISM3_2;
         case 19:
             return PYRAMID4_2;
+        case 29:
+            return TETRAHEDRON_3;   // Third order tetrahedron
         default:
             std::cerr << "[ERROR] Non supported cell type encountered" << std::endl;
             std::exit(EXIT_FAILURE);

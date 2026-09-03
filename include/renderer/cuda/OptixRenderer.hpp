@@ -91,6 +91,7 @@ private:
     CUDABuffer triangleDataBuffer;
     CUDABuffer tetrahedron4DataBuffer;
     CUDABuffer tetrahedron10DataBuffer;
+    CUDABuffer tetrahedron20DataBuffer;
     CUDABuffer hexahedron8DataBuffer;
     CUDABuffer prism6DataBuffer;
     CUDABuffer pyramid5DataBuffer;

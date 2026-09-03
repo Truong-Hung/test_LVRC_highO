@@ -16,6 +16,9 @@
 #define PYRAMID13       7
 #define HEXAHEDRON27    8
 
+// Order 3
+#define TETRAHEDRON20   9
+
 
 
 // Triangle connectivity
@@ -69,6 +72,12 @@ struct Tetrahedron10
     unsigned int vertices[10];
 };
 
+// Tetrahedron20 vertex indices
+struct Tetrahedron20
+{
+    unsigned int vertices[20];
+};
+
 // Cells
 struct Cells
 {
@@ -79,8 +88,16 @@ struct Cells
     Tetrahedron10* tetrahedrons10;
     Hexahedron20* hexahedrons20;
     Hexahedron27* hexahedrons27;
+    Tetrahedron20* tetrahedrons20;
     // Prism15* prisms15;
     // Pyramid13* pyramids13;  
+};
+
+struct DiagnosticData
+{
+    int*   iterCounts;   // 1 int par pixel
+    float* finalErrors;  // 1 float par pixel
+    float* finalDetJs;   // 1 float par pixel
 };
 
 // Mesh data

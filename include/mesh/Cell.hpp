@@ -23,7 +23,10 @@
 #define HEXAHEDRON_2        5  //Hexahderon with 20 nodes (quadratic)
 #define PRISM3_2            6
 #define PYRAMID4_2          7
-#define HEXAHEDRON_2_FULL   8  //Hexahderon with 27 nodes (full quadratic) 
+#define HEXAHEDRON_2_FULL   8  //Hexahderon with 27 nodes (full quadratic)
+
+// Order 3
+#define TETRAHEDRON_3       9
 
 
 

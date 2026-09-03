@@ -29,10 +29,11 @@ __device__ __constant__ int TET10_NODE_IJKL[10][4] = {
     {1,1,0,0},{0,1,1,0},{1,0,1,0},{1,0,0,1},{0,0,1,1},{0,1,0,1}
 };
 
+// Please see the comment in the Cell.cpp file for the node ordering of TET20.
 __device__ __constant__ int TET20_NODE_IJKL[20][4] = {
     {3,0,0,0},{0,3,0,0},{0,0,3,0},{0,0,0,3},
-    {2,1,0,0},{1,2,0,0},{0,2,1,0},{0,1,2,0},{1,0,2,0},{2,0,1,0},
-    {2,0,0,1},{1,0,0,2},{0,2,0,1},{0,1,0,2},{0,0,2,1},{0,0,1,2},
+    {2,1,0,0},{1,2,0,0},{0,2,1,0},{0,1,2,0},{2,0,1,0},{1,0,2,0},
+    {2,0,0,1},{1,0,0,2},{0,0,2,1},{0,0,1,2},{0,2,0,1},{0,1,0,2},
     {1,1,1,0},{1,1,0,1},{1,0,1,1},{0,1,1,1}
 };
 
@@ -246,39 +247,66 @@ static __forceinline__ __device__ float lagrangeInterpolationHex64(
 // Generic Tet shape functions and derivatives (barycentric, GMSH/Vizir order)
 // ============================================================================
 
+static __forceinline__ __device__ float simplexBasis1D(float L, int m, int p)
+{
+    if (m == 0) return 1.0f;
+    float prod = 1.0f;
+    for (int q = 0; q < m; ++q) {
+        prod *= ((float)p * L - (float)q) / (float)(q + 1);
+    }
+    return prod;
+}
+
+static __forceinline__ __device__ float simplexBasis1DDerivative(float L, int m, int p)
+{
+    if (m == 0) return 0.0f;
+    float sum = 0.0f;
+    for (int k = 0; k < m; ++k) {
+        float term = (float)p / (float)(k + 1);
+        for (int q = 0; q < m; ++q) {
+            if (q != k) {
+                term *= ((float)p * L - (float)q) / (float)(q + 1);
+            }
+        }
+        sum += term;
+    }
+    return sum;
+}
+
 static __forceinline__ __device__ void tetNShapeFunctions(
     float L1, float L2, float L3, float L4,
     const int nodeIJKL[][4], const float* baryNodes, int n, int n_nodes,
     float* N)
 {
+    int p = n - 1;
     for (int m = 0; m < n_nodes; ++m) {
         int i = nodeIJKL[m][0], j = nodeIJKL[m][1], k = nodeIJKL[m][2], l = nodeIJKL[m][3];
-        N[m] = lagrangeBasis1D(L1, i, baryNodes, n) *
-               lagrangeBasis1D(L2, j, baryNodes, n) *
-               lagrangeBasis1D(L3, k, baryNodes, n) *
-               lagrangeBasis1D(L4, l, baryNodes, n);
+        N[m] = simplexBasis1D(L1, i, p) *
+               simplexBasis1D(L2, j, p) *
+               simplexBasis1D(L3, k, p) *
+               simplexBasis1D(L4, l, p);
     }
 }
 
 // Derivatives w.r.t. (L2, L3, L4), with L1 = 1 - L2 - L3 - L4 substituted via chain rule:
-// dN/dL2 = -dl_i/dL1 * l_j*l_k*l_l  +  l_i * dl_j/dL2 * l_k * l_l   (etc.)
 static __forceinline__ __device__ void tetNShapeFunctionsDerivatives(
     float L1, float L2, float L3, float L4,
     const int nodeIJKL[][4], const float* baryNodes, int n, int n_nodes,
     float* dNdL2, float* dNdL3, float* dNdL4)
 {
+    int p = n - 1;
     for (int m = 0; m < n_nodes; ++m) {
         int i = nodeIJKL[m][0], j = nodeIJKL[m][1], k = nodeIJKL[m][2], l = nodeIJKL[m][3];
 
-        float Li = lagrangeBasis1D(L1, i, baryNodes, n);
-        float Lj = lagrangeBasis1D(L2, j, baryNodes, n);
-        float Lk = lagrangeBasis1D(L3, k, baryNodes, n);
-        float Ll = lagrangeBasis1D(L4, l, baryNodes, n);
+        float Li = simplexBasis1D(L1, i, p);
+        float Lj = simplexBasis1D(L2, j, p);
+        float Lk = simplexBasis1D(L3, k, p);
+        float Ll = simplexBasis1D(L4, l, p);
 
-        float dLi = lagrangeBasis1DDerivative(L1, i, baryNodes, n);  // dl_i/dL1
-        float dLj = lagrangeBasis1DDerivative(L2, j, baryNodes, n);
-        float dLk = lagrangeBasis1DDerivative(L3, k, baryNodes, n);
-        float dLl = lagrangeBasis1DDerivative(L4, l, baryNodes, n);
+        float dLi = simplexBasis1DDerivative(L1, i, p);  // dl_i/dL1
+        float dLj = simplexBasis1DDerivative(L2, j, p);
+        float dLk = simplexBasis1DDerivative(L3, k, p);
+        float dLl = simplexBasis1DDerivative(L4, l, p);
 
         // Chain rule: dL1/dL2 = -1, dL1/dL3 = -1, dL1/dL4 = -1
         dNdL2[m] = (-dLi * Lj + Li * dLj) * Lk * Ll;
@@ -297,8 +325,27 @@ static __forceinline__ __device__ float4 getTetNReferencePoint(
     float3 samplePoint)
 {
     // Unknowns: (L2, L3, L4); L1 = 1 - L2 - L3 - L4
-    float L2 = 0.25f, L3 = 0.25f, L4 = 0.25f;
-    const int maxIter = 10;
+    
+    // Initial guess from 4 corner vertices (exact solution for linear tet)
+    float3 e1 = verts[1] - verts[0];
+    float3 e2 = verts[2] - verts[0];
+    float3 e3 = verts[3] - verts[0];
+    float detA = dot(e1, cross(e2, e3));
+
+    float L2, L3, L4;
+    if (fabsf(detA) > 1e-10f) {
+        float invDetA = 1.0f / detA;
+        float3 dP = samplePoint - verts[0];
+        L2 = dot(dP, cross(e2, e3)) * invDetA; // xi
+        L3 = dot(e1, cross(dP, e3)) * invDetA; // eta
+        L4 = dot(e1, cross(e2, dP)) * invDetA; // zeta
+    } else {
+        L2 = 0.25f;
+        L3 = 0.25f;
+        L4 = 0.25f;
+    }
+
+    const int maxIter = 20;
     const float tol = 1e-5f;
 
     float N[MAX_TET_NODES];
@@ -338,11 +385,12 @@ static __forceinline__ __device__ float4 getTetNReferencePoint(
         L3 += dot(r2, R) * invDet;
         L4 += dot(r3, R) * invDet;
 
-        // Clamp to valid barycentric range
-        L2 = fminf(fmaxf(L2, -0.001f), 1.001f);
-        L3 = fminf(fmaxf(L3, -0.001f), 1.001f);
-        L4 = fminf(fmaxf(L4, -0.001f), 1.001f);
     }
+
+    // Clamp to valid barycentric range
+    L2 = fminf(fmaxf(L2, -0.001f), 1.001f);
+    L3 = fminf(fmaxf(L3, -0.001f), 1.001f);
+    L4 = fminf(fmaxf(L4, -0.001f), 1.001f);
 
     float L1 = 1.f - L2 - L3 - L4;
     return make_float4(L1, L2, L3, L4);
@@ -361,7 +409,6 @@ static __forceinline__ __device__ float lagrangeInterpolationTet4(
     for (int m = 0; m < 4; ++m) result += N[m] * data[m];
     return result;
 }
-
 
 // ---------------------------------------------------------------------------
 // Tet10 Interpolation (order 2), generic Lagrange basis
@@ -389,11 +436,21 @@ static __forceinline__ __device__ float lagrangeInterpolationTet10(
 // Tet20 Interpolation (order 3)
 // ---------------------------------------------------------------------------
 static __forceinline__ __device__ float lagrangeInterpolationTet20(
-    float3* verts, float* data, float3 samplePoint)
+    float3 v0,  float d0,  float3 v1,  float d1,  float3 v2,  float d2,  float3 v3,  float d3,
+    float3 v4,  float d4,  float3 v5,  float d5,  float3 v6,  float d6,  float3 v7,  float d7,
+    float3 v8,  float d8,  float3 v9,  float d9,  float3 v10, float d10, float3 v11, float d11,
+    float3 v12, float d12, float3 v13, float d13, float3 v14, float d14, float3 v15, float d15,
+    float3 v16, float d16, float3 v17, float d17, float3 v18, float d18, float3 v19, float d19,
+    float3 samplePoint)
 {
+    float3 verts[20] = { v0,v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16,v17,v18,v19 };
+    float data[20]   = { d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,d19 };
+
     float4 bary = getTetNReferencePoint(verts, TET20_NODE_IJKL, BARY_NODES_ORDER3, 4, 20, samplePoint);
+
     float N[20];
     tetNShapeFunctions(bary.x, bary.y, bary.z, bary.w, TET20_NODE_IJKL, BARY_NODES_ORDER3, 4, 20, N);
+
     float result = 0.f;
     for (int m = 0; m < 20; ++m) result += N[m] * data[m];
     return result;
@@ -738,8 +795,8 @@ static __forceinline__ __device__ float lagrangeInterpolation(
     N[5] = 4.0f * L2 * L3;
     N[6] = 4.0f * L1 * L3;
     N[7] = 4.0f * L1 * L4;
-    N[8] = 4.0f * L2 * L4;
-    N[9] = 4.0f * L3 * L4;
+    N[8] = 4.0f * L3 * L4;
+    N[9] = 4.0f * L2 * L4;
 }
 
 static __forceinline__ __device__ void tet10ShapeFunctionDerivatives(
@@ -785,11 +842,11 @@ static __forceinline__ __device__ void tet10ShapeFunctionDerivatives(
 
     dNdxi[8]   =  4.0f * L4;
     dNdeta[8]  =  0.0f;
-    dNdzeta[8] =  4.0f * L2;
+    dNdzeta[8] =  4.0f * L3;
 
     dNdxi[9]   =  0.0f;
     dNdeta[9]  =  4.0f * L4;
-    dNdzeta[9] =  4.0f * L3;
+    dNdzeta[9] =  4.0f * L2;
 }
 
 static __forceinline__ __device__ float3 getTet10ReferencePoint(
@@ -799,7 +856,23 @@ static __forceinline__ __device__ float3 getTet10ReferencePoint(
 {
     float3 verts[10] = { v0,v1,v2,v3,v4,v5,v6,v7,v8,v9 };
 
-    float3 curRef = make_float3(0.25f, 0.25f, 0.25f);
+    // Initial guess from 4 corner vertices (exact solution for linear tet)
+    float3 e1 = v1 - v0;
+    float3 e2 = v2 - v0;
+    float3 e3 = v3 - v0;
+    float detA = dot(e1, cross(e2, e3));
+
+    float3 curRef;
+    if (fabsf(detA) > 1e-10f) {
+        float invDetA = 1.0f / detA;
+        float3 dP = samplePoint - v0;
+        curRef.x = dot(dP, cross(e2, e3)) * invDetA; // xi
+        curRef.y = dot(e1, cross(dP, e3)) * invDetA; // eta
+        curRef.z = dot(e1, cross(e2, dP)) * invDetA; // zeta
+    } else {
+        curRef = make_float3(0.25f, 0.25f, 0.25f);
+    }
+
     const int maxIter = 10;
     const float tol = 1e-6f;
 
@@ -838,22 +911,12 @@ static __forceinline__ __device__ float3 getTet10ReferencePoint(
         delta.z = dot(r3, R) * invDet;
 
         curRef += delta;
-
-        curRef.x = fmaxf(-0.05f, fminf(1.05f, curRef.x));
-        curRef.y = fmaxf(-0.05f, fminf(1.05f, curRef.y));
-        curRef.z = fmaxf(-0.05f, fminf(1.05f, curRef.z));
-
-        float L1 = 1.0f - curRef.x - curRef.y - curRef.z;
-        if (L1 < -0.05f) {
-            float s = curRef.x + curRef.y + curRef.z;
-            if (s > 1.05f) {
-                float scale = 1.05f / s;
-                curRef.x *= scale;
-                curRef.y *= scale;
-                curRef.z *= scale;
-            }
-        }
     }
+
+    // Clamp final reference point to valid barycentric range
+    curRef.x = fmaxf(0.f, fminf(1.f, curRef.x));
+    curRef.y = fmaxf(0.f, fminf(1.f, curRef.y));
+    curRef.z = fmaxf(0.f, fminf(1.f, curRef.z));
 
     return curRef;
 }
