@@ -1,6 +1,6 @@
 #include "renderer/cuda/utils/CUDAMath.h"
 #include <math_constants.h>
-
+extern "C" __device__ int g_print_tet10_once;
 
 __device__ __constant__ int HEX27_NODE_IJK[27][3] = {
     {0,0,0},{2,0,0},{2,2,0},{0,2,0},{0,0,2},{2,0,2},{2,2,2},{0,2,2},
@@ -32,8 +32,8 @@ __device__ __constant__ int TET10_NODE_IJKL[10][4] = {
 // Please see the comment in the Cell.cpp file for the node ordering of TET20.
 __device__ __constant__ int TET20_NODE_IJKL[20][4] = {
     {3,0,0,0},{0,3,0,0},{0,0,3,0},{0,0,0,3},
-    {2,1,0,0},{1,2,0,0},{0,2,1,0},{0,1,2,0},{2,0,1,0},{1,0,2,0},
-    {2,0,0,1},{1,0,0,2},{0,0,2,1},{0,0,1,2},{0,2,0,1},{0,1,0,2},
+    {2,1,0,0},{1,2,0,0},{0,2,1,0},{0,1,2,0},{1,0,2,0},{2,0,1,0},
+    {1,0,0,2},{2,0,0,1},{0,0,1,2},{0,0,2,1},{0,1,0,2},{0,2,0,1},
     {1,1,1,0},{1,1,0,1},{1,0,1,1},{0,1,1,1}
 };
 
@@ -422,6 +422,30 @@ static __forceinline__ __device__ float lagrangeInterpolationTet10(
     float3 verts[10] = { v0,v1,v2,v3,v4,v5,v6,v7,v8,v9 };
     float data[10]   = { d0,d1,d2,d3,d4,d5,d6,d7,d8,d9 };
 
+    // atomicCAS(address, compare, value) renvoie l'ancienne valeur.
+    // Un seul thread observera 0 et le remplacera par 1.
+    const bool print_debug = (atomicCAS(&g_print_tet10_once, 0, 1) == 0);
+
+    if (print_debug) {
+        printf("\n========== PREMIER APPEL Tet10 ==========\n");
+
+        printf(
+            "samplePoint = (%+.8f, %+.8f, %+.8f)\n",
+            samplePoint.x, samplePoint.y, samplePoint.z
+        );
+
+        for (int i = 0; i < 10; ++i) {
+            printf(
+                "local=%d : xyz=(%+.8f, %+.8f, %+.8f), data=%+.8f\n",
+                i,
+                verts[i].x, verts[i].y, verts[i].z,
+                data[i]
+            );
+        }
+
+        printf("=========================================\n\n");
+    }
+
     float4 bary = getTetNReferencePoint(verts, TET10_NODE_IJKL, BARY_NODES_ORDER2, 3, 10, samplePoint);
 
     float N[10];
@@ -445,6 +469,28 @@ static __forceinline__ __device__ float lagrangeInterpolationTet20(
 {
     float3 verts[20] = { v0,v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16,v17,v18,v19 };
     float data[20]   = { d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,d19 };
+
+    const bool print_debug = (atomicCAS(&g_print_tet10_once, 0, 1) == 0);
+
+    if (print_debug) {
+        printf("\n========== PREMIER APPEL Tet20 ==========\n");
+
+        printf(
+            "samplePoint = (%+.8f, %+.8f, %+.8f)\n",
+            samplePoint.x, samplePoint.y, samplePoint.z
+        );
+
+        for (int i = 0; i < 20; ++i) {
+            printf(
+                "local=%d : xyz=(%+.8f, %+.8f, %+.8f), data=%+.8f\n",
+                i,
+                verts[i].x, verts[i].y, verts[i].z,
+                data[i]
+            );
+        }
+
+        printf("=========================================\n\n");
+    }
 
     float4 bary = getTetNReferencePoint(verts, TET20_NODE_IJKL, BARY_NODES_ORDER3, 4, 20, samplePoint);
 

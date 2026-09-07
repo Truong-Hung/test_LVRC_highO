@@ -93,13 +93,6 @@ struct Cells
     // Pyramid13* pyramids13;  
 };
 
-struct DiagnosticData
-{
-    int*   iterCounts;   // 1 int par pixel
-    float* finalErrors;  // 1 float par pixel
-    float* finalDetJs;   // 1 float par pixel
-};
-
 // Mesh data
 struct MeshData
 {

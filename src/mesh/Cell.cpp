@@ -101,9 +101,9 @@ const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_masks_ =
 
     // TETRAHEDRON_2
     {{0, 6, 2, 5, 1, 4},
-     {0, 4, 1, 9, 3, 7},
-     {0, 7, 3, 8, 2, 6},
-     {1, 5, 2, 8, 3, 9}},
+     {0, 4, 1, 8, 3, 7},
+     {0, 7, 3, 9, 2, 6},
+     {1, 5, 2, 9, 3, 8}},
 
     // HEXAHEDRON_2
     {{0, 9, 3, 13, 2, 11, 1, 8},
@@ -136,16 +136,12 @@ const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_masks_ =
      {4, 16, 5, 18, 6, 19, 7, 17, 25}},
 
     // TETRAHEDRON_3
-    // Different documentation for the face masks of TETRAHEDRON_3 as follows:
-    // https://people.sc.fsu.edu/~jburkardt/datasets/tet_mesh_order20/tet_mesh_order20.html
+    // The node ordering of TETRAHEDRON_3 is implemented according to the GMSH documentation and the discussion in the following link:
     // https://onelab.info/pipermail/gmsh/2014/009142.html
-    // but they give contradictory information about the face masks of TETRAHEDRON_3.
-    // The following face masks seems to be correct.
-    
-    {{0, 8, 9, 2, 7, 6, 1, 5, 4, 16},
-     {0, 4, 5, 1, 14, 15, 3, 11, 10, 17},
-     {0, 10, 11, 3, 13, 12, 2, 9, 8, 18},
-     {1, 6, 7, 2, 12, 13, 3, 15, 14, 19}}
+    {{0, 9, 8, 2, 7, 6, 1, 5, 4, 16},
+     {0, 4, 5, 1, 15, 14, 3, 10, 11, 17},
+     {0, 11, 10, 3, 12, 13, 2, 8, 9, 18},
+     {1, 6, 7, 2, 13, 12, 3, 14, 15, 19}}
 };
 
 const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_sorted_masks_ =
@@ -180,8 +176,8 @@ const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_sorted_masks_ =
      
      // TETRAHEDRON_2
      {{0, 1, 2, 4, 5, 6},
-     {0, 1, 3, 4, 7, 9},
-     {0, 2, 3, 6, 7, 8},
+     {0, 1, 3, 4, 7, 8},
+     {0, 2, 3, 6, 7, 9},
      {1, 2, 3, 5, 8, 9}},
 
      // HEXAHEDRON_2
@@ -215,14 +211,10 @@ const std::vector<std::vector<std::vector<uint32_t>>> Cell::face_sorted_masks_ =
      {4, 5, 6, 7, 16, 17, 18, 19, 25}},
 
      // TETRAHEDRON_3
-    //  {{0, 1, 2, 4, 5, 6, 7, 8, 9, 16},
-    //   {0, 1, 3, 4, 5, 10, 11, 12, 13, 17},
-    //   {0, 2, 3, 8, 9, 10, 11, 14, 15, 18},
-    //   {1, 2, 3, 6, 7, 12, 13, 14, 15, 19}}
      {{0, 1, 2, 4, 5, 6, 7, 9, 8, 16},
       {0, 1, 3, 4, 5, 10, 11, 14, 15, 17},
-      {0, 2, 3, 9, 8, 10, 11, 12, 13, 18},
-      {1, 2, 3, 6, 7, 12, 13, 14, 14, 19}}
+      {0, 2, 3, 8, 9, 10, 11, 12, 13, 18},
+      {1, 2, 3, 6, 7, 12, 13, 14, 15, 19}}
 };
 
 const std::vector<std::vector<uint32_t>> Cell::face_mask_permutation_ =

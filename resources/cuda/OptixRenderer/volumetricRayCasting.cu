@@ -11,7 +11,7 @@
 #define EPSILON 1.e-6f
 
 
-
+__device__ int g_print_tet10_once = 0;
 extern "C" __constant__ LaunchData launchData;
 
 extern "C" __global__ void __raygen__launch()

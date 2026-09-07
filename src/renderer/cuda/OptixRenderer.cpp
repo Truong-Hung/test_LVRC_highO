@@ -77,32 +77,6 @@ OptixRenderer::OptixRenderer(std::shared_ptr<Mesh> mesh, std::shared_ptr<Camera>
             }
         }
 
-        // // DEBUG: Print monomial basis order
-        // std::cout << "\n[Basis] Monomial order (g^u * h^v * r^w):" << std::endl;
-        // for(size_t i=0; i<exps.size(); ++i) {
-        //     auto [u,v,w] = exps[i];
-        //     // Build symbolic term string
-        //     std::string term = "1";
-        //     if(u>0 || v>0 || w>0) {
-        //         term = "";
-        //         if(u==1) term += "g";
-        //         else if(u>1) term += "g^" + std::to_string(u);
-        //         if(v==1) term += "h";
-        //         else if(v>1) term += "h^" + std::to_string(v);
-        //         if(w==1) term += "r";
-        //         else if(w>1) term += "r^" + std::to_string(w);
-        //     }
-        //     printf("  basis[%2zu]: g^%d * h^%d * r^%d  =  %s\n", i, u, v, w, term.c_str());
-        // }
-
-        // 2. Build Hex20 reference nodes
-        // std::vector<glm::vec3> nodes = {
-        //     {-1,-1,-1}, { 1,-1,-1}, { 1, 1,-1}, {-1, 1,-1}, // Corners bottom (z=-1)
-        //     {-1,-1, 1}, { 1,-1, 1}, { 1, 1, 1}, {-1, 1, 1}, // Corners top (z=1)
-        //     { 0,-1,-1}, { 1, 0,-1}, { 0, 1,-1}, {-1, 0,-1}, // Edges bottom
-        //     { 0,-1, 1}, { 1, 0, 1}, { 0, 1, 1}, {-1, 0, 1}, // Edges top
-        //     {-1,-1, 0}, { 1,-1, 0}, { 1, 1, 0}, {-1, 1, 0}  // Edges vertical
-        // };
         std::vector<glm::vec3> nodes = {
             {-1,-1,-1}, { 1,-1,-1}, { 1, 1,-1}, {-1, 1,-1}, // Corners bottom (z=-1)
             {-1,-1, 1}, { 1,-1, 1}, { 1, 1, 1}, {-1, 1, 1}, // Corners top (z=1)
@@ -174,24 +148,6 @@ OptixRenderer::OptixRenderer(std::shared_ptr<Mesh> mesh, std::shared_ptr<Camera>
                 mPlus[r*20 + c] = sum;
             }
         }
-
-        // Print M (20 x 10)
-        std::cout << "M (20 x 10):\n";
-        for(int r = 0; r < 20; ++r) {
-            for(int c = 0; c < 10; ++c) {
-                std::cout << M[r*10 + c] << " ";
-                }
-            std::cout << "\n";
-            }
-
-        // Print M_plus (10 x 20)
-        std::cout << "\nM_plus (10 x 20):\n";
-        for(int r = 0; r < 10; ++r) {
-            for(int c = 0; c < 20; ++c) {
-                std::cout << mPlus[r*20 + c] << " ";
-            }
-            std::cout << "\n";
-            }
     }
 
     // Upload Hex20 M+ for the case where we use mononomial basis
