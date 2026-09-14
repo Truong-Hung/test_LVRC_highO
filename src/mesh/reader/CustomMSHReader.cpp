@@ -112,7 +112,8 @@ void CustomMSHReader::read_vertices(std::vector<glm::vec3> &vertices)
 void CustomMSHReader::read_physical_data(
     std::vector<std::vector<std::vector<float>>> &physical_datas, 
     std::vector<std::string> &physical_data_names,
-    std::vector<uint> &physical_data_n_steps)
+    std::vector<uint> &physical_data_n_steps,
+    std::vector<PhysicalDataAssociation> &physical_data_associations)
 {
     uint32_t number_of_attributes;
     std::vector<uint32_t> integer_attributes;
@@ -198,6 +199,7 @@ void CustomMSHReader::read_physical_data(
             physical_datas.push_back(current_datas);
             physical_data_names.push_back(current_name);
             physical_data_n_steps.push_back(1);
+            physical_data_associations.push_back(PhysicalDataAssociation::Vertex);
             current_data_number++;
         }
     }
@@ -219,6 +221,7 @@ void CustomMSHReader::read_physical_data(
     physical_datas.push_back(current_datas);
     physical_data_names.push_back("Vertex index");
     physical_data_n_steps.push_back(256);
+    physical_data_associations.push_back(PhysicalDataAssociation::Vertex);
 }
 
 void CustomMSHReader::read_cells(std::vector<std::vector<uint32_t>> &cells)

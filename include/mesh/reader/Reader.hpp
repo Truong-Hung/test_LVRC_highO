@@ -14,6 +14,12 @@
 
 #include "mesh/Cell.hpp"
 
+enum class PhysicalDataAssociation : uint32_t
+{
+    Vertex = 0,
+    Element = 1
+};
+
 
 
 ///
@@ -50,10 +56,12 @@ public:
     /// \param physical_datas vector of physical data vectors
     /// \param physical_data_names vector of physical data names
     /// \param physical_data_n_steps vector of number of timesteps per physical data
+    /// \param physical_data_associations vector of source associations for each field
     ///
     virtual void read_physical_data(std::vector<std::vector<std::vector<float>>> &physical_datas, 
                                     std::vector<std::string> &physical_data_names,
-                                    std::vector<uint> &physical_data_n_steps) = 0;
+                                    std::vector<uint> &physical_data_n_steps,
+                                    std::vector<PhysicalDataAssociation> &physical_data_associations) = 0;
 
     ///
     /// \fn void Reader::read_cells(std::vector<std::vector<uint32_t>> &cells)

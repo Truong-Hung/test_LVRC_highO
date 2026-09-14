@@ -45,6 +45,11 @@ public:
     std::vector<std::vector<std::vector<float>>> physical_datas_;
     std::vector<std::string> physical_data_names_;
     std::vector<uint> physical_data_n_steps_;
+    std::vector<PhysicalDataAssociation> physical_data_associations_;
+
+    // Element-local field informations derived from vertex-associated source data
+    // [attribute][timestep][cell_type][cell_offset * nodes_per_cell + local_node]
+    std::vector<std::vector<std::vector<std::vector<float>>>> cell_physical_datas_;
 
     // Cell informations
     std::vector<std::vector<uint32_t>> cells_;
@@ -169,6 +174,12 @@ private:
     /// \brief Normalize all physical attributes
     ///
     void normalize_physical_datas();
+
+    ///
+    /// \fn void Mesh::build_cell_physical_datas()
+    /// \brief Materialize per-element local field values from vertex-associated data
+    ///
+    void build_cell_physical_datas();
 
     ///
     /// \fn void Mesh::compute_vertex_to_cell_incidence()

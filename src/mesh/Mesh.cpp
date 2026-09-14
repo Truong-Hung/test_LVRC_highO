@@ -34,7 +34,7 @@ void Mesh::load_default_mesh(FileReader& reader)
     number_of_vertices_ = static_cast<uint32_t>(vertices_.size());
 
     // Read the physical data
-    reader.read_physical_data(physical_datas_, physical_data_names_, physical_data_n_steps_);
+    reader.read_physical_data(physical_datas_, physical_data_names_, physical_data_n_steps_, physical_data_associations_);
     number_of_attributes_ = static_cast<uint32_t>(physical_datas_.size());
 
     // Normalize data
@@ -53,6 +53,8 @@ void Mesh::load_default_mesh(FileReader& reader)
         number_of_cells_per_type_[cell_type] = cells_[cell_type].size()/Cell::get_number_of_vertices(cell_type);
         number_of_cells_ += number_of_cells_per_type_[cell_type];
     }
+
+    build_cell_physical_datas();
 }
 
 uint32_t Mesh::get_cell_type(uint32_t cell_index) const
@@ -270,6 +272,46 @@ void Mesh::normalize_physical_datas()
     }
 }
 
+void Mesh::build_cell_physical_datas()
+{
+    if(physical_data_associations_.size() != number_of_attributes_){
+        physical_data_associations_.assign(number_of_attributes_, PhysicalDataAssociation::Vertex);
+    }
+
+    cell_physical_datas_.clear();
+    cell_physical_datas_.resize(number_of_attributes_);
+
+    for(uint32_t attribute = 0; attribute < number_of_attributes_; attribute++){
+        cell_physical_datas_[attribute].resize(physical_data_n_steps_[attribute]);
+
+        if(physical_data_associations_[attribute] != PhysicalDataAssociation::Vertex){
+            continue;
+        }
+
+        for(uint32_t timestep = 0; timestep < physical_data_n_steps_[attribute]; timestep++){
+            const auto& source_values = physical_datas_[attribute][timestep];
+
+            if(source_values.size() != number_of_vertices_){
+                std::cerr << "[ERROR] Vertex-associated physical data size does not match mesh vertex count" << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+
+            cell_physical_datas_[attribute][timestep].resize(Cell::get_number_of_cell_types());
+
+            for(uint32_t cell_type = 0; cell_type < Cell::get_number_of_cell_types(); cell_type++){
+                const auto& connectivity = cells_[cell_type];
+                auto& cell_values = cell_physical_datas_[attribute][timestep][cell_type];
+
+                cell_values.resize(connectivity.size());
+
+                for(uint32_t entry = 0; entry < connectivity.size(); entry++){
+                    cell_values[entry] = source_values[connectivity[entry]];
+                }
+            }
+        }
+    }
+}
+
 void Mesh::compute_vertex_to_cell_incidence()
 {
     // Each vertex has its incident cells
@@ -415,7 +457,11 @@ void Mesh::print_mesh() const
     std::cout << "-- " << number_of_attributes_ << " attributes" << std::endl;
     
     for(uint32_t attribute = 0; attribute < number_of_attributes_; attribute++)
-        std::cout << "   -- " << physical_data_names_[attribute] << " : " << physical_datas_[attribute].size() << " x " << physical_datas_[attribute][0].size() << " datapoints" << std::endl;
+        std::cout << "   -- " << physical_data_names_[attribute]
+                  << " : " << physical_datas_[attribute].size() << " x " << physical_datas_[attribute][0].size()
+                  << " datapoints"
+                  << " (" << (physical_data_associations_[attribute] == PhysicalDataAssociation::Vertex ? "vertex-associated" : "element-associated")
+                  << ")" << std::endl;
 
     std::cout << "-- " << number_of_cells_ << " cells" << std::endl;
     

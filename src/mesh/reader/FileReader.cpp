@@ -37,12 +37,13 @@ void FileReader::read_vertices(std::vector<glm::vec3> &vertices)
 void FileReader::read_physical_data(
     std::vector<std::vector<std::vector<float>>> &physical_datas, 
     std::vector<std::string> &physical_data_names,
-    std::vector<uint> &physical_data_n_steps)
+    std::vector<uint> &physical_data_n_steps,
+    std::vector<PhysicalDataAssociation> &physical_data_associations)
 {
     std::cout << "-- reading datapoints ..." << std::endl;
 
     // Calls the corresponding readers method
-    reader_->read_physical_data(physical_datas, physical_data_names, physical_data_n_steps);  
+    reader_->read_physical_data(physical_datas, physical_data_names, physical_data_n_steps, physical_data_associations);  
 }
 
 void FileReader::read_cells(std::vector<std::vector<uint32_t>> &cells)

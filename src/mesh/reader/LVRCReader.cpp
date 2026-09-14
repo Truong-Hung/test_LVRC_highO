@@ -58,12 +58,14 @@ void LVRCReader::read_vertices(std::vector<glm::vec3> &vertices)
 void LVRCReader::read_physical_data(
     std::vector<std::vector<std::vector<float>>> &physical_datas, 
     std::vector<std::string> &physical_data_names,
-    std::vector<uint> &physical_data_n_steps)
+    std::vector<uint> &physical_data_n_steps,
+    std::vector<PhysicalDataAssociation> &physical_data_associations)
 {
     // Data
     physical_datas.resize(number_of_physical_data_fields_);
     physical_data_names.resize(number_of_physical_data_fields_);
     physical_data_n_steps.resize(number_of_physical_data_fields_);
+    physical_data_associations.resize(number_of_physical_data_fields_, PhysicalDataAssociation::Element);
 
     // Read all physical data field files
     std::ifstream physical_data_stream;
@@ -83,10 +85,12 @@ void LVRCReader::read_physical_data(
             physical_datas[f][t].shrink_to_fit();
             current_file_index++;
         }
+
+        physical_data_associations[f] = PhysicalDataAssociation::Vertex;
     }
 
     // Cell centered
-    for(uint32_t f = number_of_vertex_centered_fields_; f < number_of_cell_centered_fields_; f++){
+    for(uint32_t f = number_of_vertex_centered_fields_; f < number_of_physical_data_fields_; f++){
         physical_data_names[f] = std::to_string(f);
         physical_data_n_steps[f] = number_of_timesteps_per_field_[f];
         physical_datas[f].resize(number_of_timesteps_per_field_[f]);   
@@ -99,6 +103,8 @@ void LVRCReader::read_physical_data(
             physical_datas[f][t].shrink_to_fit();
             current_file_index++;
         }
+
+        physical_data_associations[f] = PhysicalDataAssociation::Element;
     }
 }
 
