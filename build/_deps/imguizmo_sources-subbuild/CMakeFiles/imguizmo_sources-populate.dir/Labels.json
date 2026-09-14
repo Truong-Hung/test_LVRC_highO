@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/CMakeFiles/imguizmo_sources-populate"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/CMakeFiles/imguizmo_sources-populate.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/CMakeFiles/imguizmo_sources-populate-complete.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-build.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-configure.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-download.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-install.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-mkdir.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-patch_disconnected.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-test.rule"
+		},
+		{
+			"file" : "/home/runner/work/test_LVRC_highO/test_LVRC_highO/build/_deps/imguizmo_sources-subbuild/imguizmo_sources-populate-prefix/src/imguizmo_sources-populate-stamp/imguizmo_sources-populate-update_disconnected.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"imguizmo_sources-populate"
+		],
+		"name" : "imguizmo_sources-populate"
+	}
+}
