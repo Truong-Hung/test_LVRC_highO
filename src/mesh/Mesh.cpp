@@ -51,7 +51,7 @@ void Mesh::load_default_mesh(FileReader& reader)
     cells_.resize(number_of_cell_types, {});
     number_of_cells_per_type_.reserve(number_of_cell_types);
     number_of_cells_per_type_.resize(number_of_cell_types, 0);
-    reader.read_cells(cells_);
+    reader.read_cells(cells_,number_of_cells_per_type_);
 
     for(uint32_t cell_type = 0; cell_type < number_of_cell_types; cell_type++){
         number_of_cells_per_type_[cell_type] = cells_[cell_type].size()/Cell::get_number_of_vertices(cell_type);
@@ -453,8 +453,21 @@ void Mesh::update_vertex(size_t)
     onMeshUpdated.execute();
 }
 
-void Mesh::add_element_scalar_field(const ElementScalarField& field)
+void Mesh::add_element_scalar_field(
+    const ElementScalarField& field)
 {
+    if (field.cell_type >=
+        number_of_cells_per_type_.size())
+    {
+        throw std::runtime_error(
+            "ElementScalarField references an invalid cell type");
+    }
+
+    const uint32_t numberOfCells =
+        number_of_cells_per_type_[field.cell_type];
+
+    field.validate(numberOfCells);
+
     element_physical_datas_.push_back(field);
     normalize_element_physical_datas();
 }

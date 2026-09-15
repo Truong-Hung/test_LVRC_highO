@@ -14,6 +14,7 @@
 #include "mesh/reader/LVRCReader.hpp"
 #include "mesh/reader/CustomMSHReader.hpp"
 #include "mesh/reader/CustomUMESHReader.hpp"
+#include "mesh/ElementScalarField.hpp"
 
 
 
@@ -90,7 +91,8 @@ public:
     ///
     /// \param cells vector for storing vertex indices
     ///
-    void read_cells(std::vector<std::vector<uint32_t>> &cells);
+    void read_cells(std::vector<std::vector<uint32_t>>& cells,
+                    std::vector<uint32_t>& number_of_cells_per_type);
 
 private:
     ///

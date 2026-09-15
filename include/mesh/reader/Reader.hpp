@@ -60,10 +60,11 @@ public:
     ///
     /// \param element_physical_datas vector of ElementScalarField
     ///
-    virtual void read_element_physical_data(std::vector<ElementScalarField> &element_physical_datas)
-    {
-        (void)element_physical_datas;
-    }
+    // virtual void read_element_physical_data(std::vector<ElementScalarField> &element_physical_datas)
+    // {
+    //     (void)element_physical_datas;
+    // }
+    virtual void read_element_physical_data(std::vector<ElementScalarField>& element_fields) = 0;
 
     ///
     /// \fn void Reader::read_cells(std::vector<std::vector<uint32_t>> &cells)
@@ -71,7 +72,8 @@ public:
     ///
     /// \param cells vector for storing vertex indices
     ///
-    virtual void read_cells(std::vector<std::vector<uint32_t>> &cells) = 0;
+    virtual void read_cells(std::vector<std::vector<uint32_t>>& cells,
+                            std::vector<uint32_t>& number_of_cells_per_type) = 0;
 };
 
 #endif

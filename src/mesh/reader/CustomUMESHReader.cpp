@@ -101,7 +101,8 @@ void CustomUMESHReader::read_physical_data(
     physical_data_n_steps.push_back(1);
 }
 
-void CustomUMESHReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
+void CustomUMESHReader::read_cells(std::vector<std::vector<uint32_t>>& cells,
+                                   std::vector<uint32_t>& number_of_cells_per_type)
 {
 
     size_t numPerElementAttributes = 0;
@@ -177,6 +178,13 @@ void CustomUMESHReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
             }
         }
     }
+}
+
+void CustomUMESHReader::read_element_physical_data(
+    std::vector<ElementScalarField>& element_fields)
+{
+    // The current UMESH format provides only global nodal fields.
+    element_fields.clear();
 }
 
 std::vector<int> CustomUMESHReader::replace_vertices_indices_prism3_1(std::vector<int> vector)

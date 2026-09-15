@@ -53,12 +53,13 @@ void FileReader::read_element_physical_data(std::vector<ElementScalarField> &ele
     reader_->read_element_physical_data(element_physical_datas);
 }
 
-void FileReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
+void FileReader::read_cells(std::vector<std::vector<uint32_t>> &cells,
+                            std::vector<uint32_t>& number_of_cells_per_type)
 {
     std::cout << "-- reading cells ..." << std::endl;
 
     // Calls the corresponding readers method
-    reader_->read_cells(cells);
+    reader_->read_cells(cells, number_of_cells_per_type);
 }
 
 std::string FileReader::get_file_extension()

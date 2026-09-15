@@ -102,7 +102,8 @@ void LVRCReader::read_physical_data(
     }
 }
 
-void LVRCReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
+void LVRCReader::read_cells(std::vector<std::vector<uint32_t>>& cells,
+                            std::vector<uint32_t>& number_of_cells_per_type)
 {
     // Data
     std::ifstream cells_stream;
@@ -117,4 +118,11 @@ void LVRCReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
             cells[c].shrink_to_fit();
         }
     }
+}
+
+void LVRCReader::read_element_physical_data(
+    std::vector<ElementScalarField>& element_fields)
+{
+    // The current LVRC format provides only global nodal fields.
+    element_fields.clear();
 }

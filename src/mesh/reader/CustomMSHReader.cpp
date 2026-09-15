@@ -4,7 +4,7 @@
 ///
 
 
-
+#include <unordered_map>
 #include "mesh/reader/CustomMSHReader.hpp"
 
 CustomMSHReader::CustomMSHReader(std::string file_path)
@@ -221,7 +221,8 @@ void CustomMSHReader::read_physical_data(
     physical_data_n_steps.push_back(256);
 }
 
-void CustomMSHReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
+void CustomMSHReader::read_cells(std::vector<std::vector<uint32_t>>& cells,
+                                 std::vector<uint32_t>& number_of_cells_per_type)
 {
     uint32_t number_of_entities, number_of_cells, start_cell, end_cell;
     uint32_t dimension, tag, msh_cell_type, cells_in_block;
@@ -230,10 +231,17 @@ void CustomMSHReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
     std::string current_read_buffer;
     uint32_t current_read_value;
     uint32_t current_read_offset;
+    uint64_t current_cell_tag;
+    uint32_t local_cell_id;
 
     // Return to the beginning of the file
     filestream_.clear( );
     filestream_.seekg(0, std::ios::beg);
+    // Reset the cell counts and the Gmsh-to-LVRC mapping.
+    // This reader stores cells separately for every LVRC cell type.
+    number_of_cells_per_type.assign(static_cast<uint32_t>(cells.size()),0);
+
+    element_locations_.clear();
 
     // Search for the cells
     while(std::getline(filestream_, line_buffer_)){
@@ -259,28 +267,516 @@ void CustomMSHReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
                     std::getline(filestream_, line_buffer_);
 
                     // Read only 3D cells
-                    if(dimension == 3){
+                    if(dimension == 3)
+                    {
                         bufferstream_ = std::stringstream(line_buffer_);
 
                         current_cell.clear();
                         current_read_offset = 0;
 
-                        while(std::getline(bufferstream_, current_read_buffer, ' ')){
-                            // Skip the first value representing the cell's index
-                            if(current_read_offset != 0){
-                                current_read_value = std::stoul(current_read_buffer);
-                                current_cell.push_back(vertex_indices_[current_read_value]);
+                        while(std::getline(
+                            bufferstream_,
+                            current_read_buffer,
+                            ' '))
+                        {
+                            // Ignore tokens created by repeated spaces.
+                            if(current_read_buffer.empty())
+                                continue;
+
+                            // First value is the Gmsh element tag.
+                            if(current_read_offset == 0)
+                            {
+                                current_cell_tag =
+                                    static_cast<uint64_t>(
+                                        std::stoull(current_read_buffer));
+                            }
+                            else
+                            {
+                                current_read_value =
+                                    static_cast<uint32_t>(
+                                        std::stoul(current_read_buffer));
+
+                                current_cell.push_back(
+                                    vertex_indices_[current_read_value]);
                             }
 
                             current_read_offset++;
                         }
 
-                        cells[current_cells_type].insert(cells[current_cells_type].end(), current_cell.begin(), current_cell.end());
+                        // Index in the LVRC table for this cell type,
+                        // before inserting its connectivity.
+                        local_cell_id =
+                            number_of_cells_per_type_[current_cells_type];
+
+                        cells[current_cells_type].insert(
+                            cells[current_cells_type].end(),
+                            current_cell.begin(),
+                            current_cell.end());
+
+                        number_of_cells_per_type_[current_cells_type]++;
+
+                        element_locations_[current_cell_tag] =
+                        {
+                            current_cells_type,
+                            local_cell_id
+                        };
                     }
                 }
             }
 
             break;
+        }
+    }
+}
+
+void CustomMSHReader::read_element_physical_data(
+    std::vector<ElementScalarField>& element_fields)
+{
+    uint32_t number_of_attributes;
+    std::vector<uint32_t> integer_attributes;
+
+    std::string current_name;
+    uint32_t current_data_number = 0;
+
+    double current_time;
+    uint64_t current_cell_tag;
+    uint32_t current_number_of_values;
+    float current_data;
+
+    uint32_t current_cell_type;
+    uint32_t current_cell_id;
+
+    std::unordered_map<std::string, size_t>
+        field_indices;
+
+
+    // Return to the beginning of the file
+    filestream_.clear();
+    filestream_.seekg(0, std::ios::beg);
+
+
+    // Search for all element-based physical data
+    while(std::getline(filestream_, line_buffer_))
+    {
+        if(line_buffer_ == "$ElementNodeData")
+        {
+            // Read the string attributes
+            std::getline(filestream_, line_buffer_);
+            bufferstream_ = std::stringstream(line_buffer_);
+            bufferstream_ >> number_of_attributes;
+
+
+            // First string attribute is the field name
+            if(number_of_attributes >= 1)
+            {
+                std::getline(filestream_, line_buffer_);
+                current_name = line_buffer_;
+
+                if(current_name.size() >= 2
+                && current_name.front() == '"'
+                && current_name.back() == '"')
+                {
+                    current_name = current_name.substr(
+                        1,
+                        current_name.size() - 2);
+                }
+            }
+            else
+            {
+                current_name =
+                    "Element data "
+                    + std::to_string(current_data_number);
+            }
+
+
+            // Skip remaining string attributes
+            for(uint32_t l = 1;
+                l < number_of_attributes;
+                l++)
+            {
+                std::getline(filestream_, line_buffer_);
+            }
+
+
+            // Read the real attributes
+            std::getline(filestream_, line_buffer_);
+            bufferstream_ = std::stringstream(line_buffer_);
+            bufferstream_ >> number_of_attributes;
+
+            current_time = 0.0;
+
+            for(uint32_t l = 0;
+                l < number_of_attributes;
+                l++)
+            {
+                std::getline(filestream_, line_buffer_);
+                bufferstream_ = std::stringstream(line_buffer_);
+
+                if(l == 0)
+                    bufferstream_ >> current_time;
+            }
+
+
+            // Read integer attributes
+            std::getline(filestream_, line_buffer_);
+            bufferstream_ = std::stringstream(line_buffer_);
+            bufferstream_ >> number_of_attributes;
+
+            if(number_of_attributes < 3)
+            {
+                std::cerr
+                    << "[ERROR] Not enough integer attributes in "
+                    << "$ElementNodeData" << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            integer_attributes.resize(number_of_attributes);
+
+            for(uint32_t l = 0;
+                l < number_of_attributes;
+                l++)
+            {
+                std::getline(filestream_, line_buffer_);
+                bufferstream_ = std::stringstream(line_buffer_);
+                bufferstream_ >> integer_attributes[l];
+            }
+
+
+            const uint32_t timestep =
+                integer_attributes[0];
+
+            const uint32_t components =
+                integer_attributes[1];
+
+            const uint32_t number_of_element_entries =
+                integer_attributes[2];
+
+
+            // Only scalar data for now
+            if(components != 1)
+            {
+                std::cerr
+                    << "[ERROR] Only scalar $ElementNodeData is "
+                    << "supported for now" << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            if(number_of_element_entries == 0)
+            {
+                std::cerr
+                    << "[ERROR] Empty $ElementNodeData block"
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+
+            // -------------------------------------------------
+            // Read the first element line separately.
+            //
+            // It lets us identify:
+            // - the LVRC cell type,
+            // - the field DOF count per cell.
+            // -------------------------------------------------
+            std::getline(filestream_, line_buffer_);
+            bufferstream_ = std::stringstream(line_buffer_);
+
+            bufferstream_ >> current_cell_tag
+                          >> current_number_of_values;
+
+            const auto first_location =
+                element_locations_.find(current_cell_tag);
+
+            if(first_location == element_locations_.end())
+            {
+                std::cerr
+                    << "[ERROR] $ElementNodeData references "
+                    << "an unknown 3D element tag "
+                    << current_cell_tag
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            current_cell_type =
+                first_location->second.cell_type;
+
+            current_cell_id =
+                first_location->second.local_cell_id;
+
+
+            // -------------------------------------------------
+            // Find or create the ElementScalarField.
+            // This is the actual implementation of step 9.
+            // -------------------------------------------------
+            size_t field_index;
+
+            const auto field_location =
+                field_indices.find(current_name);
+
+            if(field_location == field_indices.end())
+            {
+                field_index = element_fields.size();
+
+                field_indices[current_name] =
+                    field_index;
+
+                element_fields.push_back(
+                    ElementScalarField());
+
+                ElementScalarField& new_field =
+                    element_fields[field_index];
+
+                new_field.name = current_name;
+                new_field.cell_type = current_cell_type;
+                new_field.dofs_per_cell =
+                    current_number_of_values;
+                new_field.components = components;
+                new_field.basis =
+                    FieldBasis::GmshLagrange;
+
+
+                // Only tetrahedral Gmsh Lagrange fields for now
+                if(new_field.cell_type != TETRAHEDRON_1
+                && new_field.cell_type != TETRAHEDRON_2
+                && new_field.cell_type != TETRAHEDRON_3)
+                {
+                    std::cerr
+                        << "[ERROR] $ElementNodeData is only "
+                        << "supported on tetrahedra for now"
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+
+                new_field.field_order = 0;
+
+                for(uint32_t order = 1;
+                    order <= 10;
+                    order++)
+                {
+                    const uint32_t number_of_dofs =
+                        (order + 1)
+                        * (order + 2)
+                        * (order + 3)
+                        / 6;
+
+                    if(number_of_dofs
+                    == new_field.dofs_per_cell)
+                    {
+                        new_field.field_order =
+                            order;
+                        break;
+                    }
+                }
+
+                if(new_field.field_order == 0)
+                {
+                    std::cerr
+                        << "[ERROR] Unsupported tetrahedral "
+                        << "field size "
+                        << new_field.dofs_per_cell
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+            }
+            else
+            {
+                field_index =
+                    field_location->second;
+            }
+
+
+            ElementScalarField& current_field =
+                element_fields[field_index];
+
+
+            // -------------------------------------------------
+            // Check that this timestep/block matches the field
+            // metadata created by its first block.
+            // -------------------------------------------------
+            if(current_field.cell_type != current_cell_type)
+            {
+                std::cerr
+                    << "[ERROR] Field "
+                    << current_field.name
+                    << " has multiple cell types"
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            if(current_field.dofs_per_cell
+            != current_number_of_values)
+            {
+                std::cerr
+                    << "[ERROR] Field "
+                    << current_field.name
+                    << " has inconsistent local DOF counts"
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            if(current_field.components != components)
+            {
+                std::cerr
+                    << "[ERROR] Field "
+                    << current_field.name
+                    << " has inconsistent component counts"
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+
+            const uint32_t number_of_cells =
+                number_of_cells_per_type_[
+                    current_field.cell_type];
+
+
+            // Make room for this timestep.
+            if(current_field.values.size() <= timestep)
+            {
+                current_field.values.resize(
+                    timestep + 1);
+            }
+
+            if(!current_field.values[timestep].empty())
+            {
+                std::cerr
+                    << "[ERROR] Field "
+                    << current_field.name
+                    << " already contains timestep "
+                    << timestep
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            current_field.values[timestep].resize(
+                current_field.expected_value_count(
+                    number_of_cells));
+
+
+            // -------------------------------------------------
+            // Store the first line already read.
+            // -------------------------------------------------
+            for(uint32_t local_dof = 0;
+                local_dof < current_field.dofs_per_cell;
+                local_dof++)
+            {
+                bufferstream_ >> current_data;
+
+                if(bufferstream_.fail())
+                {
+                    std::cerr
+                        << "[ERROR] Not enough coefficients for "
+                        << "element "
+                        << current_cell_tag
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+
+                current_field.values[timestep][
+                    current_field.value_index(
+                        current_cell_id,
+                        local_dof)
+                ] = current_data;
+            }
+
+
+            // -------------------------------------------------
+            // Read remaining element lines in this block.
+            // -------------------------------------------------
+            for(uint32_t data = 1;
+                data < number_of_element_entries;
+                data++)
+            {
+                std::getline(filestream_, line_buffer_);
+                bufferstream_ = std::stringstream(line_buffer_);
+
+                bufferstream_ >> current_cell_tag
+                              >> current_number_of_values;
+
+                const auto location =
+                    element_locations_.find(
+                        current_cell_tag);
+
+                if(location == element_locations_.end())
+                {
+                    std::cerr
+                        << "[ERROR] $ElementNodeData references "
+                        << "an unknown 3D element tag "
+                        << current_cell_tag
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+
+                current_cell_type =
+                    location->second.cell_type;
+
+                current_cell_id =
+                    location->second.local_cell_id;
+
+                if(current_cell_type
+                != current_field.cell_type)
+                {
+                    std::cerr
+                        << "[ERROR] Mixed cell types in one "
+                        << "$ElementNodeData block are not "
+                        << "supported"
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+
+                if(current_number_of_values
+                != current_field.dofs_per_cell)
+                {
+                    std::cerr
+                        << "[ERROR] Inconsistent number of "
+                        << "values in $ElementNodeData"
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+
+                for(uint32_t local_dof = 0;
+                    local_dof < current_field.dofs_per_cell;
+                    local_dof++)
+                {
+                    bufferstream_ >> current_data;
+
+                    if(bufferstream_.fail())
+                    {
+                        std::cerr
+                            << "[ERROR] Not enough coefficients for "
+                            << "element "
+                            << current_cell_tag
+                            << std::endl;
+
+                        std::exit(EXIT_FAILURE);
+                    }
+
+                    current_field.values[timestep][
+                        current_field.value_index(
+                            current_cell_id,
+                            local_dof)
+                    ] = current_data;
+                }
+            }
+
+
+            // Verify final size of this timestep buffer.
+            current_field.validate(number_of_cells);
+
+            current_data_number++;
         }
     }
 }

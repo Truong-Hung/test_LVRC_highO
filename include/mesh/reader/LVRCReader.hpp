@@ -69,13 +69,17 @@ public:
                             std::vector<std::string> &physical_data_names,
                             std::vector<uint> &physical_data_n_steps) override;
 
+    void read_element_physical_data(std::vector<ElementScalarField>& element_fields) override;
+
     ///
     /// \fn void LVRCReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
     /// \brief Get the cells of the .lvrc mesh
     ///
     /// \param cells vector for storing vertex indices
+    /// \param number_of_cells_per_type vector for storing the number of cells per type
     ///
-    void read_cells(std::vector<std::vector<uint32_t>> &cells) override;
+    void read_cells(std::vector<std::vector<uint32_t>>& cells,
+                    std::vector<uint32_t>& number_of_cells_per_type) override;
 };
 
 #endif
