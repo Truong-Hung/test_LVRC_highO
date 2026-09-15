@@ -13,8 +13,7 @@
 #include <glm/glm.hpp>
 
 #include "mesh/Cell.hpp"
-
-
+#include "mesh/ElementScalarField.hpp"
 
 ///
 /// \class Reader Reader.hpp "Reader.hpp"
@@ -54,6 +53,17 @@ public:
     virtual void read_physical_data(std::vector<std::vector<std::vector<float>>> &physical_datas, 
                                     std::vector<std::string> &physical_data_names,
                                     std::vector<uint> &physical_data_n_steps) = 0;
+
+    ///
+    /// \fn void read_element_physical_data(std::vector<ElementScalarField> &element_physical_datas)
+    /// \brief Read element-based physical data (optional for specific readers)
+    ///
+    /// \param element_physical_datas vector of ElementScalarField
+    ///
+    virtual void read_element_physical_data(std::vector<ElementScalarField> &element_physical_datas)
+    {
+        (void)element_physical_datas;
+    }
 
     ///
     /// \fn void Reader::read_cells(std::vector<std::vector<uint32_t>> &cells)

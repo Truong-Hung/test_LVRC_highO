@@ -37,8 +37,12 @@ void Mesh::load_default_mesh(FileReader& reader)
     reader.read_physical_data(physical_datas_, physical_data_names_, physical_data_n_steps_);
     number_of_attributes_ = static_cast<uint32_t>(physical_datas_.size());
 
+    // Read element-based physical scalar fields
+    reader.read_element_physical_data(element_physical_datas_);
+
     // Normalize data
     normalize_physical_datas();
+    normalize_element_physical_datas();
 
     // Read the cells
     uint32_t number_of_cell_types = Cell::get_number_of_cell_types();
@@ -417,6 +421,16 @@ void Mesh::print_mesh() const
     for(uint32_t attribute = 0; attribute < number_of_attributes_; attribute++)
         std::cout << "   -- " << physical_data_names_[attribute] << " : " << physical_datas_[attribute].size() << " x " << physical_datas_[attribute][0].size() << " datapoints" << std::endl;
 
+    if (!element_physical_datas_.empty()) {
+        std::cout << "-- " << element_physical_datas_.size() << " element scalar fields" << std::endl;
+        for (const auto& field : element_physical_datas_) {
+            std::cout << "   -- " << field.name << " : cell_type=" << field.cell_type
+                      << ", order=" << field.field_order
+                      << ", dofs_per_cell=" << field.dofs_per_cell
+                      << ", " << field.values.size() << " timesteps" << std::endl;
+        }
+    }
+
     std::cout << "-- " << number_of_cells_ << " cells" << std::endl;
     
     for(uint32_t cell_type = 0; cell_type < Cell::get_number_of_cell_types(); cell_type++){
@@ -437,4 +451,64 @@ void Mesh::update_vertex(size_t)
 {
     compute_AABB();
     onMeshUpdated.execute();
+}
+
+void Mesh::add_element_scalar_field(const ElementScalarField& field)
+{
+    element_physical_datas_.push_back(field);
+    normalize_element_physical_datas();
+}
+
+bool Mesh::has_element_scalar_fields() const
+{
+    return !element_physical_datas_.empty();
+}
+
+size_t Mesh::get_number_of_element_scalar_fields() const
+{
+    return element_physical_datas_.size();
+}
+
+const ElementScalarField& Mesh::get_element_scalar_field(size_t index) const
+{
+    if (index >= element_physical_datas_.size()) {
+        std::cerr << "[ERROR] ElementScalarField index " << index << " out of bounds" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    return element_physical_datas_[index];
+}
+
+ElementScalarField& Mesh::get_element_scalar_field(size_t index)
+{
+    if (index >= element_physical_datas_.size()) {
+        std::cerr << "[ERROR] ElementScalarField index " << index << " out of bounds" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    return element_physical_datas_[index];
+}
+
+void Mesh::normalize_element_physical_datas()
+{
+    for (auto& field : element_physical_datas_) {
+        if (field.values.empty()) continue;
+
+        float m = field.values[0][0];
+        float M = field.values[0][0];
+
+        for (size_t t = 0; t < field.values.size(); t++) {
+            for (size_t d = 0; d < field.values[t].size(); d++) {
+                m = std::min(m, field.values[t][d]);
+                M = std::max(M, field.values[t][d]);
+            }
+        }
+
+        float diff = M - m;
+        if (diff > 1e-8f) {
+            for (size_t t = 0; t < field.values.size(); t++) {
+                for (size_t d = 0; d < field.values[t].size(); d++) {
+                    field.values[t][d] = (field.values[t][d] - m) / diff;
+                }
+            }
+        }
+    }
 }

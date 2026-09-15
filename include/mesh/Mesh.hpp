@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include "mesh/Cell.hpp"
+#include "mesh/ElementScalarField.hpp"
 #include "mesh/reader/FileReader.hpp"
 #include "event_manager.h"
 
@@ -48,6 +49,9 @@ public:
 
     // Cell informations
     std::vector<std::vector<uint32_t>> cells_;
+
+    // Scalar-field interpolation support.
+    std::vector<ElementScalarField> element_physical_datas_;
 
     // Axis-aligned bounding box
     glm::vec3 AABB_[2];
@@ -137,6 +141,36 @@ public:
     std::vector<std::vector<uint32_t>> get_faces(uint32_t cell_index) const;
 
     ///
+    /// \fn void Mesh::add_element_scalar_field(const ElementScalarField& field)
+    /// \brief Add an element-based scalar field to the mesh
+    ///
+    void add_element_scalar_field(const ElementScalarField& field);
+
+    ///
+    /// \fn bool Mesh::has_element_scalar_fields() const
+    /// \brief Check if the mesh has any element-based scalar fields
+    ///
+    bool has_element_scalar_fields() const;
+
+    ///
+    /// \fn size_t Mesh::get_number_of_element_scalar_fields() const
+    /// \brief Get the number of element-based scalar fields
+    ///
+    size_t get_number_of_element_scalar_fields() const;
+
+    ///
+    /// \fn const ElementScalarField& Mesh::get_element_scalar_field(size_t index) const
+    /// \brief Get an element-based scalar field by index
+    ///
+    const ElementScalarField& get_element_scalar_field(size_t index) const;
+
+    ///
+    /// \fn ElementScalarField& Mesh::get_element_scalar_field(size_t index)
+    /// \brief Get a mutable element-based scalar field by index
+    ///
+    ElementScalarField& get_element_scalar_field(size_t index);
+
+    ///
     /// \fn Mesh Mesh::print_mesh()
     /// \brief Print mesh information
     ///
@@ -169,6 +203,12 @@ private:
     /// \brief Normalize all physical attributes
     ///
     void normalize_physical_datas();
+
+    ///
+    /// \fn void Mesh::normalize_element_physical_datas()
+    /// \brief Normalize all element-based physical attributes
+    ///
+    void normalize_element_physical_datas();
 
     ///
     /// \fn void Mesh::compute_vertex_to_cell_incidence()

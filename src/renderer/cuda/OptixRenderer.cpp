@@ -237,10 +237,28 @@ void OptixRenderer::triangularizeMesh()
                 break;
             // Second order triangle - recently added for Tet10 element
             case 6:
-                // One triangle
+                // // One triangle
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // break;
+                // Four triangles
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
                 meshTrianglesVertexData.push_back(currentTriangle);
                 break;
 
@@ -278,6 +296,44 @@ void OptixRenderer::triangularizeMesh()
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
                 meshTrianglesVertexData.push_back(currentTriangle);
                 break;
+                // Four triangles using all vertices (indices 0-8 and 9 is the interior vertex)
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
+                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                // meshTrianglesVertexData.push_back(currentTriangle);
+                // break;
             default:
                 break;
         }

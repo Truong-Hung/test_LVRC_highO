@@ -77,6 +77,14 @@ public:
                             std::vector<uint> &physical_data_n_steps);
 
     ///
+    /// \fn void FileReader::read_element_physical_data(std::vector<ElementScalarField> &element_physical_datas)
+    /// \brief Read element-based physical data
+    ///
+    /// \param element_physical_datas vector of ElementScalarField
+    ///
+    void read_element_physical_data(std::vector<ElementScalarField> &element_physical_datas);
+
+    ///
     /// \fn void FileReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
     /// \brief Read the cells of the mesh
     ///

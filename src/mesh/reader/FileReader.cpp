@@ -45,6 +45,14 @@ void FileReader::read_physical_data(
     reader_->read_physical_data(physical_datas, physical_data_names, physical_data_n_steps);  
 }
 
+void FileReader::read_element_physical_data(std::vector<ElementScalarField> &element_physical_datas)
+{
+    std::cout << "-- reading element scalar fields ..." << std::endl;
+
+    // Calls the corresponding reader's method
+    reader_->read_element_physical_data(element_physical_datas);
+}
+
 void FileReader::read_cells(std::vector<std::vector<uint32_t>> &cells)
 {
     std::cout << "-- reading cells ..." << std::endl;
