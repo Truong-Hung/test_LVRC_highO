@@ -239,7 +239,8 @@ void CustomMSHReader::read_cells(std::vector<std::vector<uint32_t>>& cells,
     filestream_.seekg(0, std::ios::beg);
     // Reset the cell counts and the Gmsh-to-LVRC mapping.
     // This reader stores cells separately for every LVRC cell type.
-    number_of_cells_per_type.assign(static_cast<uint32_t>(cells.size()),0);
+    number_of_cells_per_type_.assign(static_cast<uint32_t>(cells.size()), 0);
+    number_of_cells_per_type.assign(static_cast<uint32_t>(cells.size()), 0);
 
     element_locations_.clear();
 
@@ -327,6 +328,8 @@ void CustomMSHReader::read_cells(std::vector<std::vector<uint32_t>>& cells,
             break;
         }
     }
+
+    number_of_cells_per_type = number_of_cells_per_type_;
 }
 
 void CustomMSHReader::read_element_physical_data(

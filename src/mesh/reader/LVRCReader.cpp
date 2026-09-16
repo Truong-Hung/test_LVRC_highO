@@ -118,6 +118,8 @@ void LVRCReader::read_cells(std::vector<std::vector<uint32_t>>& cells,
             cells[c].shrink_to_fit();
         }
     }
+
+    number_of_cells_per_type = number_of_cells_per_type_;
 }
 
 void LVRCReader::read_element_physical_data(

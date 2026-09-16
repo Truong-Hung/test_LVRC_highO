@@ -159,11 +159,14 @@ void CustomUMESHReader::read_cells(std::vector<std::vector<uint32_t>>& cells,
     std::vector<int> vector_cell_type = {TETRAHEDRON_1, PYRAMID4_1, PRISM3_1, HEXAHEDRON_1};
     int nb_element_handled = static_cast<int>(vector_cell_type.size());
 
+    number_of_cells_per_type.assign(static_cast<uint32_t>(cells.size()), 0);
+
     for(int current_element = 0; current_element < nb_element_handled; current_element++)
     {
         filestream_.read((char*)&size, sizeof(size));
         if(size)
         {
+            number_of_cells_per_type[vector_cell_type[current_element]] = static_cast<uint32_t>(size);
             int nb_vertices = nb_vertices_cell_type(vector_cell_type[current_element]);     
             std::vector<int> current_cell;
             current_cell.resize(nb_vertices);

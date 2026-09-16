@@ -6,6 +6,7 @@
 
 
 #include "mesh/Mesh.hpp"
+#include <utility> // for std::move
 
 Mesh::Mesh(std::string file_path)
 {
@@ -37,12 +38,8 @@ void Mesh::load_default_mesh(FileReader& reader)
     reader.read_physical_data(physical_datas_, physical_data_names_, physical_data_n_steps_);
     number_of_attributes_ = static_cast<uint32_t>(physical_datas_.size());
 
-    // Read element-based physical scalar fields
-    reader.read_element_physical_data(element_physical_datas_);
-
     // Normalize data
     normalize_physical_datas();
-    normalize_element_physical_datas();
 
     // Read the cells
     uint32_t number_of_cell_types = Cell::get_number_of_cell_types();
@@ -53,10 +50,98 @@ void Mesh::load_default_mesh(FileReader& reader)
     number_of_cells_per_type_.resize(number_of_cell_types, 0);
     reader.read_cells(cells_,number_of_cells_per_type_);
 
-    for(uint32_t cell_type = 0; cell_type < number_of_cell_types; cell_type++){
-        number_of_cells_per_type_[cell_type] = cells_[cell_type].size()/Cell::get_number_of_vertices(cell_type);
-        number_of_cells_ += number_of_cells_per_type_[cell_type];
+    // -------------------------------------------------------
+    // Compute / validate the number of cells per LVRC type.
+    //
+    // This must occur before loading ElementNodeData, since
+    // Mesh::add_element_scalar_field() uses these numbers to
+    // validate ElementScalarField::values.
+    // -------------------------------------------------------
+
+    number_of_cells_ = 0;
+
+    for(uint32_t cell_type = 0;
+        cell_type < static_cast<uint32_t>(cells_.size());
+        ++cell_type)
+    {
+        const uint32_t vertices_per_cell =
+            Cell::get_number_of_vertices(cell_type);
+
+        if(vertices_per_cell == 0)
+        {
+            std::cerr
+                << "[ERROR] Invalid LVRC cell type "
+                << cell_type
+                << std::endl;
+
+            std::exit(EXIT_FAILURE);
+        }
+
+        if(cells_[cell_type].size()
+        % vertices_per_cell != 0)
+        {
+            std::cerr
+                << "[ERROR] Invalid connectivity buffer size "
+                << "for cell type "
+                << cell_type
+                << std::endl;
+
+            std::exit(EXIT_FAILURE);
+        }
+
+        const uint32_t computed_number_of_cells =
+            static_cast<uint32_t>(
+                cells_[cell_type].size()
+                / vertices_per_cell);
+
+        // Optional consistency check if the reader also filled
+        // number_of_cells_per_type_.
+        if(number_of_cells_per_type_[cell_type] != 0
+        && number_of_cells_per_type_[cell_type]
+        != computed_number_of_cells)
+        {
+            std::cerr
+                << "[ERROR] Inconsistent number of cells for "
+                << "cell type "
+                << cell_type
+                << ": reader reported "
+                << number_of_cells_per_type_[cell_type]
+                << ", connectivity contains "
+                << computed_number_of_cells
+                << std::endl;
+
+            std::exit(EXIT_FAILURE);
+        }
+
+        // Mesh derives the authoritative count from its own
+        // flattened connectivity storage.
+        number_of_cells_per_type_[cell_type] =
+            computed_number_of_cells;
+
+        number_of_cells_ +=
+            computed_number_of_cells;
     }
+
+
+    // Read element-based scalar fields after the cell counts
+    // are available and validated.
+    std::vector<ElementScalarField>
+        loaded_element_fields;
+
+    reader.read_element_physical_data(
+        loaded_element_fields);
+
+    for(ElementScalarField& field :
+        loaded_element_fields)
+    {
+        add_element_scalar_field(
+            std::move(field));
+    }
+
+
+    // Normalize element-local fields only after they have
+    // been successfully inserted and validated.
+    normalize_element_physical_datas();
 }
 
 uint32_t Mesh::get_cell_type(uint32_t cell_index) const
@@ -469,7 +554,6 @@ void Mesh::add_element_scalar_field(
     field.validate(numberOfCells);
 
     element_physical_datas_.push_back(field);
-    normalize_element_physical_datas();
 }
 
 bool Mesh::has_element_scalar_fields() const
@@ -503,7 +587,7 @@ ElementScalarField& Mesh::get_element_scalar_field(size_t index)
 void Mesh::normalize_element_physical_datas()
 {
     for (auto& field : element_physical_datas_) {
-        if (field.values.empty()) continue;
+        if (field.values.empty() || field.values[0].empty()) continue;
 
         float m = field.values[0][0];
         float M = field.values[0][0];
