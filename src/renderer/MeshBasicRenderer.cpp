@@ -40,33 +40,58 @@ void MeshBasicRenderer::renderUI()
 		if(transferFunctions[currentAttribute].draw("Transfer function"))
 			updateOrCreateTransferFunctionTexture();
 
-		// The index currentAttribute is safe to access because the renderer is recreated when a new mesh is loaded
-		if(ImGui::BeginCombo("Field", mesh->physical_data_names_[currentAttribute].data())){
-			bool must_change_transfer_function = false;
-			// The second parameter is the label previewed before opening the combo.{
+		std::string preview_label;
+		if(mesh->has_element_scalar_fields() && getIsElementFieldActive() && getCurrentElementFieldIndex() < mesh->get_number_of_element_scalar_fields()){
+			const auto& elem_field = mesh->get_element_scalar_field(getCurrentElementFieldIndex());
+			preview_label = elem_field.name + " [Element P" + std::to_string(elem_field.field_order) + "]";
+		} else if(currentAttribute < mesh->physical_data_names_.size()){
+			preview_label = mesh->physical_data_names_[currentAttribute] + " [Nodal]";
+		} else {
+			preview_label = "None";
+		}
+
+		if(ImGui::BeginCombo("Field", preview_label.c_str())){
+			// Nodal fields
 			for(uint32_t n = 0; n < mesh->number_of_attributes_; n++){
-				bool is_selected = currentAttribute == n;
-				// You can store your selection however you want, outside or inside your objects
-
-				if(ImGui::Selectable(mesh->physical_data_names_[n].data(), is_selected)){
-					must_change_transfer_function = currentAttribute != n;
-					currentAttribute = n;
+				bool is_selected = !getIsElementFieldActive() && currentAttribute == n;
+				std::string label = mesh->physical_data_names_[n] + " [Nodal]";
+				if(ImGui::Selectable(label.c_str(), is_selected)){
+					selectNodalField(n);
 				}
-
-				if(is_selected)
-					ImGui::SetItemDefaultFocus();
-				// You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+				if(is_selected) ImGui::SetItemDefaultFocus();
 			}
 
-			if(must_change_transfer_function){
-				updateOrCreatePhysicalValuesSSBO();
-				updateOrCreateTransferFunctionTexture();
-				onCurrentAttributeChanged();
+			// Element fields
+			if(mesh->has_element_scalar_fields()){
+				for(size_t e = 0; e < mesh->get_number_of_element_scalar_fields(); e++){
+					bool is_selected = getIsElementFieldActive() && getCurrentElementFieldIndex() == e;
+					const auto& elem_field = mesh->get_element_scalar_field(e);
+					std::string label = elem_field.name + " [Element P" + std::to_string(elem_field.field_order) + "]";
+					if(ImGui::Selectable(label.c_str(), is_selected)){
+						selectElementField(e);
+					}
+					if(is_selected) ImGui::SetItemDefaultFocus();
+				}
 			}
 
 			ImGui::EndCombo();
 		}
 	}
+}
+
+void MeshBasicRenderer::selectNodalField(size_t index)
+{
+	if(currentAttribute != index){
+		currentAttribute = static_cast<uint32_t>(index);
+		updateOrCreatePhysicalValuesSSBO();
+		updateOrCreateTransferFunctionTexture();
+		onCurrentAttributeChanged();
+	}
+}
+
+void MeshBasicRenderer::selectElementField(size_t index)
+{
+	(void)index;
 }
 
 void MeshBasicRenderer::onCurrentAttributeChanged()

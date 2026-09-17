@@ -539,7 +539,7 @@ void Mesh::update_vertex(size_t)
 }
 
 void Mesh::add_element_scalar_field(
-    const ElementScalarField& field)
+    ElementScalarField field)
 {
     if (field.cell_type >=
         number_of_cells_per_type_.size())
@@ -553,7 +553,7 @@ void Mesh::add_element_scalar_field(
 
     field.validate(numberOfCells);
 
-    element_physical_datas_.push_back(field);
+    element_physical_datas_.push_back(std::move(field));
 }
 
 bool Mesh::has_element_scalar_fields() const

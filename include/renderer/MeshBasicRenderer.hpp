@@ -27,6 +27,10 @@ protected:
 	virtual void updateOrCreateTransferFunctionTexture();
 	virtual void updateOrCreatePhysicalValuesSSBO();
 	virtual void onCurrentAttributeChanged();
+	virtual bool getIsElementFieldActive() const { return false; }
+	virtual size_t getCurrentElementFieldIndex() const { return 0; }
+	virtual void selectNodalField(size_t index);
+	virtual void selectElementField(size_t index);
 
 	// Reload all the mesh data (when mesh is updated)
 	virtual void update() override;

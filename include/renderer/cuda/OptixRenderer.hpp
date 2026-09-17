@@ -33,6 +33,19 @@ private:
     int varianceType;
     int interpolationStrategy;
 
+    // Automatically selected from the imported mesh.
+    // If a compatible $ElementNodeData field exists, it takes
+    // precedence over the legacy $NodeData representation.
+    bool useElementField = false;
+
+    // Index of the automatically selected ElementNodeData field.
+    // The first compatible field is used for now.
+    uint32_t currentElementField = 0;
+
+    // True when the selected ElementNodeData timestep must be
+    // copied again from host memory to the CUDA buffer.
+    bool elementFieldBufferDirty = true;
+
     // ESS and AS
     float alphaThreshold;
     float opacityThreshold;
@@ -79,7 +92,7 @@ private:
 
     OptixShaderBindingTable shaderBindingTable = {};
 
-    LaunchData launchData;
+    LaunchData launchData = {};
     
     CUDABuffer launchDataBuffer;
 
@@ -88,6 +101,7 @@ private:
 
     CUDABuffer vertexDataBuffer;
     CUDABuffer dataDataBuffer;
+    CUDABuffer elementFieldDataBuffer;
     CUDABuffer triangleDataBuffer;
     CUDABuffer tetrahedron4DataBuffer;
     CUDABuffer tetrahedron10DataBuffer;
@@ -121,10 +135,16 @@ private:
 
     // LVRC
     void renderUI() override;
+    bool getIsElementFieldActive() const override { return useElementField; }
+    size_t getCurrentElementFieldIndex() const override { return currentElementField; }
+    void selectNodalField(size_t index) override;
+    void selectElementField(size_t index) override;
     void onShadersReloadRequest() override;
     void updateOrCreateTransferFunctionTexture() override;
     void updateOrCreatePhysicalValuesSSBO() override;
     void updatePhysicalDataBuffer();
+    void updateElementFieldBuffer();
+    uint32_t getActiveFieldTimestepCount() const;
     void updateBoxesDataBuffer();
     void updateCamera();
 

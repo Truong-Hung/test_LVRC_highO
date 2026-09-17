@@ -1,5 +1,10 @@
-#include "renderer/cuda/utils/CUDAMath.h"
+#pragma once
+
+#include <cstdint>
 #include <math_constants.h>
+
+#include "renderer/cuda/utils/CUDAStructs.h"
+#include "renderer/cuda/utils/CUDAMath.h"
 extern "C" __device__ int g_print_tet10_once;
 
 __device__ __constant__ int HEX27_NODE_IJK[27][3] = {
@@ -394,6 +399,269 @@ static __forceinline__ __device__ float4 getTetNReferencePoint(
 
     float L1 = 1.f - L2 - L3 - L4;
     return make_float4(L1, L2, L3, L4);
+}
+
+// ---------------------------------------------------------------------------
+// Tetrahedral geometry mapping.
+//
+// Convert a world-space sample point to barycentric coordinates.
+// The mapping order depends only on the geometric cell type.
+// No physical-field value is used here.
+// ---------------------------------------------------------------------------
+static __forceinline__ __device__
+float4 getTetrahedronReferencePoint(
+    const MeshData* mesh,
+    uint32_t cellID,
+    uint32_t cellType,
+    float3 samplePoint)
+{
+    switch(cellType)
+    {
+        case TETRAHEDRON4:
+        {
+            const Tetrahedron4 cell = mesh->cells.tetrahedrons4[cellID];
+
+            float3 vertices[4] =
+            {
+                mesh->vertices[cell.vertices[0]],
+                mesh->vertices[cell.vertices[1]],
+                mesh->vertices[cell.vertices[2]],
+                mesh->vertices[cell.vertices[3]]
+            };
+
+            return getTetNReferencePoint(vertices, TET4_NODE_IJKL,
+                                         BARY_NODES_ORDER1, 2, 4, samplePoint);
+        }
+
+        case TETRAHEDRON10:
+        {
+            const Tetrahedron10 cell = mesh->cells.tetrahedrons10[cellID];
+
+            float3 vertices[10] =
+            {
+                mesh->vertices[cell.vertices[0]],
+                mesh->vertices[cell.vertices[1]],
+                mesh->vertices[cell.vertices[2]],
+                mesh->vertices[cell.vertices[3]],
+                mesh->vertices[cell.vertices[4]],
+                mesh->vertices[cell.vertices[5]],
+                mesh->vertices[cell.vertices[6]],
+                mesh->vertices[cell.vertices[7]],
+                mesh->vertices[cell.vertices[8]],
+                mesh->vertices[cell.vertices[9]]
+            };
+
+            return getTetNReferencePoint(vertices, TET10_NODE_IJKL,
+                                         BARY_NODES_ORDER2, 3, 10, samplePoint);
+        }
+
+        case TETRAHEDRON20:
+        {
+            const Tetrahedron20 cell = mesh->cells.tetrahedrons20[cellID];
+
+            float3 vertices[20] =
+            {
+                mesh->vertices[cell.vertices[0]],
+                mesh->vertices[cell.vertices[1]],
+                mesh->vertices[cell.vertices[2]],
+                mesh->vertices[cell.vertices[3]],
+                mesh->vertices[cell.vertices[4]],
+                mesh->vertices[cell.vertices[5]],
+                mesh->vertices[cell.vertices[6]],
+                mesh->vertices[cell.vertices[7]],
+                mesh->vertices[cell.vertices[8]],
+                mesh->vertices[cell.vertices[9]],
+                mesh->vertices[cell.vertices[10]],
+                mesh->vertices[cell.vertices[11]],
+                mesh->vertices[cell.vertices[12]],
+                mesh->vertices[cell.vertices[13]],
+                mesh->vertices[cell.vertices[14]],
+                mesh->vertices[cell.vertices[15]],
+                mesh->vertices[cell.vertices[16]],
+                mesh->vertices[cell.vertices[17]],
+                mesh->vertices[cell.vertices[18]],
+                mesh->vertices[cell.vertices[19]]
+            };
+
+            return getTetNReferencePoint(vertices, TET20_NODE_IJKL,
+                                         BARY_NODES_ORDER3, 4, 20, samplePoint);
+        }
+
+        default:
+        {
+            // This function must only be called for tetrahedra.
+            return make_float4(0.f,0.f,0.f,0.f);
+        }
+    }
+}
+
+static __forceinline__ __device__
+float evaluateLinearTetField(
+    const float* coefficients,
+    const float4 bary)
+{
+    return
+        bary.x * coefficients[0]
+      + bary.y * coefficients[1]
+      + bary.z * coefficients[2]
+      + bary.w * coefficients[3];
+}
+
+static __forceinline__ __device__
+float evaluateTetrahedralElementField(
+    const ElementFieldData& field,
+    uint32_t localCellID,
+    const float4 bary,
+    int strategy)
+{
+    const size_t base = static_cast<size_t>(localCellID) * field.dofsPerCell * field.components;
+
+    const float* coefficients = field.values + base;
+
+    // Scalar fields only for now.
+    if(field.components != 1)
+    {
+        return 0.f;
+    }
+
+    // Strategy 0: Linear
+    if(strategy == 0)
+    {
+        return evaluateLinearTetField(
+            coefficients,
+            bary);
+    }
+
+    // Strategy 1: High Order
+    if(strategy == 1)
+    {
+        switch(field.fieldOrder)
+        {
+            case 1:
+            {
+                float N[4];
+                tetNShapeFunctions(
+                    bary.x, bary.y, bary.z, bary.w,
+                    TET4_NODE_IJKL,
+                    BARY_NODES_ORDER1,
+                    2,
+                    4,
+                    N);
+
+                float result = 0.f;
+                for(int i = 0; i < 4; ++i)
+                {
+                    result += N[i] * coefficients[i];
+                }
+
+                return result;
+            }
+
+            case 2:
+            {
+                float N[10];
+                tetNShapeFunctions(
+                    bary.x, bary.y, bary.z, bary.w,
+                    TET10_NODE_IJKL,
+                    BARY_NODES_ORDER2,
+                    3,
+                    10,
+                    N);
+
+                float result = 0.f;
+                for(int i = 0; i < 10; ++i)
+                {
+                    result += N[i] * coefficients[i];
+                }
+
+                return result;
+            }
+
+            case 3:
+            {
+                float N[20];
+                tetNShapeFunctions(
+                    bary.x, bary.y, bary.z, bary.w,
+                    TET20_NODE_IJKL,
+                    BARY_NODES_ORDER3,
+                    4,
+                    20,
+                    N);
+
+                float result = 0.f;
+                for(int i = 0; i < 20; ++i)
+                {
+                    result += N[i] * coefficients[i];
+                }
+
+                return result;
+            }
+
+            default:
+                return 0.f;
+        }
+    }
+
+    // Strategy 2: Difference = |Linear - HighOrder|
+    if(strategy == 2)
+    {
+        const float valLinear =
+            evaluateLinearTetField(
+                coefficients,
+                bary);
+
+        float valHighOrder = 0.f;
+
+        switch(field.fieldOrder)
+        {
+            case 1:
+                valHighOrder = valLinear;
+                break;
+
+            case 2:
+            {
+                float N[10];
+                tetNShapeFunctions(
+                    bary.x, bary.y, bary.z, bary.w,
+                    TET10_NODE_IJKL,
+                    BARY_NODES_ORDER2,
+                    3,
+                    10,
+                    N);
+
+                for(int i = 0; i < 10; ++i)
+                {
+                    valHighOrder += N[i] * coefficients[i];
+                }
+                break;
+            }
+
+            case 3:
+            {
+                float N[20];
+                tetNShapeFunctions(
+                    bary.x, bary.y, bary.z, bary.w,
+                    TET20_NODE_IJKL,
+                    BARY_NODES_ORDER3,
+                    4,
+                    20,
+                    N);
+
+                for(int i = 0; i < 20; ++i)
+                {
+                    valHighOrder += N[i] * coefficients[i];
+                }
+                break;
+            }
+
+            default:
+                return 0.f;
+        }
+
+        return fabsf(valLinear - valHighOrder) * 25.f;
+    }
+
+    return 0.f;
 }
 
 // ---------------------------------------------------------------------------

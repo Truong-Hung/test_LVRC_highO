@@ -554,37 +554,7 @@ void CustomMSHReader::read_element_physical_data(
                     std::exit(EXIT_FAILURE);
                 }
 
-                new_field.field_order = 0;
-
-                for(uint32_t order = 1;
-                    order <= 10;
-                    order++)
-                {
-                    const uint32_t number_of_dofs =
-                        (order + 1)
-                        * (order + 2)
-                        * (order + 3)
-                        / 6;
-
-                    if(number_of_dofs
-                    == new_field.dofs_per_cell)
-                    {
-                        new_field.field_order =
-                            order;
-                        break;
-                    }
-                }
-
-                if(new_field.field_order == 0)
-                {
-                    std::cerr
-                        << "[ERROR] Unsupported tetrahedral "
-                        << "field size "
-                        << new_field.dofs_per_cell
-                        << std::endl;
-
-                    std::exit(EXIT_FAILURE);
-                }
+                new_field.field_order = get_tetrahedral_field_order(new_field.dofs_per_cell);
             }
             else
             {
@@ -640,6 +610,22 @@ void CustomMSHReader::read_element_physical_data(
                 number_of_cells_per_type_[
                     current_field.cell_type];
 
+            // Check if any cell is missing or counted twice
+            if(number_of_element_entries != number_of_cells)
+            {
+                std::cerr
+                    << "[ERROR] Field "
+                    << current_field.name
+                    << " contains "
+                    << number_of_element_entries
+                    << " element entries, but the mesh contains "
+                    << number_of_cells
+                    << " cells of type "
+                    << Cell::get_name(current_field.cell_type)
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
 
             // Make room for this timestep.
             if(current_field.values.size() <= timestep)
@@ -664,6 +650,32 @@ void CustomMSHReader::read_element_physical_data(
                 current_field.expected_value_count(
                     number_of_cells));
 
+            std::vector<bool> cell_was_read(number_of_cells, false);
+
+            if(current_cell_id >= number_of_cells)
+            {
+                std::cerr
+                    << "[ERROR] Invalid local cell ID "
+                    << current_cell_id
+                    << " for Gmsh element "
+                    << current_cell_tag
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            if(cell_was_read[current_cell_id])
+            {
+                std::cerr
+                    << "[ERROR] Duplicate $ElementNodeData entry "
+                    << "for Gmsh element "
+                    << current_cell_tag
+                    << std::endl;
+
+                std::exit(EXIT_FAILURE);
+            }
+
+            cell_was_read[current_cell_id] = true;
 
             // -------------------------------------------------
             // Store the first line already read.
@@ -750,6 +762,31 @@ void CustomMSHReader::read_element_physical_data(
                     std::exit(EXIT_FAILURE);
                 }
 
+                if(current_cell_id >= number_of_cells)
+                {
+                    std::cerr
+                        << "[ERROR] Invalid local cell ID "
+                        << current_cell_id
+                        << " for Gmsh element "
+                        << current_cell_tag
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+
+                if(cell_was_read[current_cell_id])
+                {
+                    std::cerr
+                        << "[ERROR] Duplicate $ElementNodeData entry "
+                        << "for Gmsh element "
+                        << current_cell_tag
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+
+                cell_was_read[current_cell_id] = true;
+
                 for(uint32_t local_dof = 0;
                     local_dof < current_field.dofs_per_cell;
                     local_dof++)
@@ -775,6 +812,23 @@ void CustomMSHReader::read_element_physical_data(
                 }
             }
 
+            for(uint32_t local_cell_id = 0;
+                local_cell_id < number_of_cells;
+                ++local_cell_id)
+            {
+                if(!cell_was_read[local_cell_id])
+                {
+                    std::cerr
+                        << "[ERROR] Missing $ElementNodeData entry "
+                        << "for field "
+                        << current_field.name
+                        << ", local cell "
+                        << local_cell_id
+                        << std::endl;
+
+                    std::exit(EXIT_FAILURE);
+                }
+            }
 
             // Verify final size of this timestep buffer.
             current_field.validate(number_of_cells);
@@ -782,6 +836,26 @@ void CustomMSHReader::read_element_physical_data(
             current_data_number++;
         }
     }
+}
+
+uint32_t CustomMSHReader::get_tetrahedral_field_order(
+    uint32_t dofs_per_cell)
+{
+    for(uint32_t order = 1; order <= 10; ++order)
+    {
+        const uint32_t expected_dofs =
+            (order + 1)
+            * (order + 2)
+            * (order + 3)
+            / 6;
+
+        if(expected_dofs == dofs_per_cell)
+            return order;
+    }
+
+    throw std::runtime_error(
+        "Unsupported tetrahedral ElementNodeData size: "
+        + std::to_string(dofs_per_cell));
 }
 
 uint32_t CustomMSHReader::convert_cell_type(uint32_t msh_cell_type)

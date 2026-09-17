@@ -138,7 +138,8 @@ extern "C" __global__ void __raygen__launch()
                         // // Sample the cell
                         // sampledValue = dataVariance;
                         sampledValue = sampleCell(
-                            &rayGenData->mesh, 
+                            &rayGenData->mesh,
+                            launchData.elementField,
                             hitCellID, 
                             hitCellType, 
                             rayOrigin + t*rayDirection,

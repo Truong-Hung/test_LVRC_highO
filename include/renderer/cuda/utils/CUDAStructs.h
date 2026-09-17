@@ -102,6 +102,19 @@ struct MeshData
     Cells cells;
 };
 
+// Element-local scalar field selected for rendering.
+struct ElementFieldData
+{
+    const float* values;
+
+    unsigned int cellType;
+    unsigned int fieldOrder;
+    unsigned int dofsPerCell;
+    unsigned int components;
+
+    unsigned int enabled;
+};
+
 // Boxes
 struct BoxesData
 {
@@ -155,6 +168,9 @@ struct LaunchData
     float samplingPower;
     float minSamplePeriod;
     float maxSamplePeriod;
+
+    // Selected element-local scalar field.
+    ElementFieldData elementField;
 
     // Interpolation
     float *leastSquaresMatrix;   // Hex20: 10x20 left pseudo-inverse

@@ -428,12 +428,43 @@ static __forceinline__ __device__ float sample(
 
 static __forceinline__ __device__ float sampleCell(
     MeshData* mesh,
+    const ElementFieldData& elementField,
     uint32_t cellID,
     uint32_t cellType,
     float3 samplePoint,
     float* M_plus,
     int strategy)
 {
+
+    // Add support for element-local scalar field sampling
+    if(elementField.enabled)
+    {
+        if(cellType != elementField.cellType)
+        {
+            return 0.f;
+        }
+
+        if(cellType != TETRAHEDRON4
+        && cellType != TETRAHEDRON10
+        && cellType != TETRAHEDRON20)
+        {
+            return 0.f;
+        }
+
+        const float4 bary =
+            getTetrahedronReferencePoint(
+                mesh,
+                cellID,
+                cellType,
+                samplePoint);
+
+        return evaluateTetrahedralElementField(
+            elementField,
+            cellID,
+            bary,
+            strategy);
+    }
+
     // Sample according to cell type
     switch(cellType){
         case TETRAHEDRON4:  return sample(mesh, mesh->cells.tetrahedrons4[cellID], samplePoint, strategy);

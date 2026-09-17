@@ -141,10 +141,10 @@ public:
     std::vector<std::vector<uint32_t>> get_faces(uint32_t cell_index) const;
 
     ///
-    /// \fn void Mesh::add_element_scalar_field(const ElementScalarField& field)
+    /// \fn void Mesh::add_element_scalar_field(ElementScalarField field)
     /// \brief Add an element-based scalar field to the mesh
     ///
-    void add_element_scalar_field(const ElementScalarField& field);
+    void add_element_scalar_field(ElementScalarField field);
 
     ///
     /// \fn bool Mesh::has_element_scalar_fields() const

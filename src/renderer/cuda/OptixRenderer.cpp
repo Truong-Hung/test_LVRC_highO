@@ -33,11 +33,25 @@ OptixRenderer::OptixRenderer(std::shared_ptr<Mesh> mesh, std::shared_ptr<Camera>
     maxSamplePeriod(2.f),
     boxes(*mesh)
 {
+    // Select the representation as early as possible, before
+    // preprocessing that depends on legacy $NodeData.
+    useElementField = mesh->has_element_scalar_fields();
+
+    currentElementField = 0;
+    currentTimestep = 0;
+
+    elementFieldBufferDirty = useElementField;
+
     // Preprocessing
     std::cout << "[Preprocessing]" << std::endl;
 
-    boxes.launch(std::max(mesh->number_of_vertices_/512, 1000u));
-    boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
+    boxes.launch(std::max(mesh->number_of_vertices_ / 512, 1000u));
+
+    if(!useElementField)
+    {
+        boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
+    }
+
     triangularizeMesh();
     triangularizeBoxes();
 
@@ -54,6 +68,27 @@ OptixRenderer::OptixRenderer(std::shared_ptr<Mesh> mesh, std::shared_ptr<Camera>
     buildMeshAccelerationStructure();
     buildBoxesAccelerationStructure();
     buildSBT();
+
+    // Choose the rendering data representation from the input mesh.
+    //
+    // $ElementNodeData has priority over legacy $NodeData.
+    // This is not a user-facing option.
+    if(useElementField)
+    {
+        updateElementFieldBuffer();
+
+        elementFieldBufferDirty = false;
+
+        std::cout
+            << "[INFO] Using $ElementNodeData for volume rendering"
+            << std::endl;
+    }
+    else
+    {
+        std::cout
+            << "[INFO] No $ElementNodeData found, using legacy $NodeData"
+            << std::endl;
+    }
 
     // Init OpenGL
     initOpenGL();
@@ -291,49 +326,49 @@ void OptixRenderer::triangularizeMesh()
             // Third order triangle (10 vertices, Tet20 face)
             case 10:
                 // One triangle using 3 corner vertices (indices 0, 3, 6)
-                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
-                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
-                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
-                meshTrianglesVertexData.push_back(currentTriangle);
-                break;
-                // Four triangles using all vertices (indices 0-8 and 9 is the interior vertex)
                 // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
                 // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
                 // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
-                // meshTrianglesVertexData.push_back(currentTriangle);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
-                // meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
                 // meshTrianglesVertexData.push_back(currentTriangle);
                 // break;
+                // Four triangles using all vertices (indices 0-8 and 9 is the interior vertex)
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[1]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[8]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[2]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[4]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[5]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[7]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                break;
             default:
                 break;
         }
@@ -392,34 +427,46 @@ void OptixRenderer::render()
     CUDA_CHECK(cudaGraphicsResourceGetMappedPointer((void**) &launchData.image, &renderPBOSize, cudaPBODestResource));
 
     // Animation update
-    if(animated){
+    const uint32_t number_of_timesteps = getActiveFieldTimestepCount();
+
+    if(animated && number_of_timesteps > 1)
+    {
         timeSinceUpdate += 1000.f/ImGui::GetIO().Framerate;
 
         if(timeSinceUpdate > 1000.f/animationRate){
-            // One step variance
-            if(varianceType == 0){
-                boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
-                dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
-                maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
-                dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
-            }
+            currentTimestep = (currentTimestep + 1) % number_of_timesteps;
 
-            // Global variance
-            if(varianceType == 1){
-                dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
-                maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[currentTimestep].data(), boxes.maxOpacities_[currentTimestep].size());
-                dataVariancesDataBuffer.upload(boxes.dataVariances_[currentTimestep].data(), boxes.dataVariances_[currentTimestep].size());
+            if(useElementField)
+            {
+                elementFieldBufferDirty = true;
             }
+            else
+            {
+                // One step variance
+                if(varianceType == 0){
+                    boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
+                    dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
+                    maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
+                    dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
+                }
 
-            // Progressive variance
-            if(varianceType == 2){
-                boxes.updateDataProgressive(transferFunctions, currentAttribute, currentTimestep);
-                dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
-                maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
-                dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
+                // Global variance
+                if(varianceType == 1){
+                    dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
+                    maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[currentTimestep].data(), boxes.maxOpacities_[currentTimestep].size());
+                    dataVariancesDataBuffer.upload(boxes.dataVariances_[currentTimestep].data(), boxes.dataVariances_[currentTimestep].size());
+                }
+
+                // Progressive variance
+                if(varianceType == 2){
+                    boxes.updateDataProgressive(transferFunctions, currentAttribute, currentTimestep);
+                    dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
+                    maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
+                    dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
+                }
+
+                currentTimestep = (currentTimestep + 1)%(mesh->physical_data_n_steps_[currentAttribute]);
             }
-
-            currentTimestep = (currentTimestep + 1)%(mesh->physical_data_n_steps_[currentAttribute]);
             timeSinceUpdate = 0.f;
         }
     }
@@ -431,13 +478,41 @@ void OptixRenderer::render()
     launchData.imageHeight = renderResolution.y;
 
     launchData.alphaThreshold = alphaThreshold;
-    launchData.opacityThreshold = opacityThreshold;
-    launchData.samplingPower = samplingPower;
-    launchData.minSamplePeriod = minSamplePeriod;
-    launchData.maxSamplePeriod = maxSamplePeriod;
     launchData.interpolationStrategy = interpolationStrategy;
-    launchData.tfMin = transferFunctions[currentAttribute].get_min();
-    launchData.tfMax = transferFunctions[currentAttribute].get_max();
+    
+    if(useElementField)
+    {
+        // Boxes are still based on legacy NodeData. Disable their
+        // data-dependent skipping and adaptive sample spacing.
+        launchData.opacityThreshold = 0.f;
+        launchData.samplingPower = 1.f;
+        launchData.minSamplePeriod = minSamplePeriod;
+        launchData.maxSamplePeriod = minSamplePeriod;
+
+        if(elementFieldBufferDirty)
+        {
+            updateElementFieldBuffer();
+
+            elementFieldBufferDirty = false;
+        }
+    }
+    else
+    {
+        launchData.opacityThreshold = opacityThreshold;
+        launchData.samplingPower = samplingPower;
+        launchData.minSamplePeriod = minSamplePeriod;
+        launchData.maxSamplePeriod = maxSamplePeriod;
+    }
+    if(useElementField)
+    {
+        launchData.tfMin = 0.0f;
+        launchData.tfMax = 1.0f;
+    }
+    else
+    {
+        launchData.tfMin = transferFunctions[currentAttribute].get_min();
+        launchData.tfMax = transferFunctions[currentAttribute].get_max();
+    }
 
     // Use the already mapped PBO pointer
     float4 *d_image = launchData.image;
@@ -482,23 +557,31 @@ void OptixRenderer::renderUI()
 {
     MeshBasicRenderer::renderUI();
     
-    if(mesh->physical_data_n_steps_[currentAttribute] > 1){
+    const uint32_t number_of_timesteps = getActiveFieldTimestepCount();
+
+    if(number_of_timesteps > 1){
         if(ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap)){
             // Handle data with multiple timesteps
             int oldTimestep = currentTimestep;
             int selectedTimestep = currentTimestep;
 
             if(ImGui::Checkbox("Animate", &animated)) markRenderDirty();
-            if(ImGui::SliderInt("Timestep", &selectedTimestep, 0, mesh->physical_data_n_steps_[currentAttribute] - 1)) markRenderDirty();
+            if(ImGui::SliderInt("Timestep", &selectedTimestep, 0, static_cast<int>(number_of_timesteps - 1))) markRenderDirty();
 
             // Variance type
             int oldVarianceType = varianceType;
-
-            ImGui::RadioButton("One step variance", &varianceType, 0); 
-            ImGui::SameLine();
-            ImGui::RadioButton("Global variance", &varianceType, 1);
-            ImGui::SameLine();
-            ImGui::RadioButton("Progressive variance", &varianceType, 2);
+            if(!useElementField)
+            {
+                ImGui::RadioButton("One step variance", &varianceType, 0); 
+                ImGui::SameLine();
+                ImGui::RadioButton("Global variance", &varianceType, 1);
+                ImGui::SameLine();
+                ImGui::RadioButton("Progressive variance", &varianceType, 2);
+            }
+            else
+            {
+                ImGui::TextDisabled("ElementNodeData uses fixed sampling for now.");
+            }
 
             // Regenerate variance
             if(oldVarianceType != varianceType){
@@ -527,32 +610,40 @@ void OptixRenderer::renderUI()
 
             // Selection of timestep
             if(oldTimestep != selectedTimestep){
-                currentTimestep = selectedTimestep;
+                currentTimestep = static_cast<uint32_t>(selectedTimestep);
 
-                // One step variance
-                if(varianceType == 0){
-                    boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
-                    dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
-                    maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
-                    dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
+                if(useElementField)
+                {
+                    elementFieldBufferDirty = true;
                 }
+                else
+                {
+                    // One step variance
+                    if(varianceType == 0){
+                        boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
+                        dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
+                        maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
+                        dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
+                    }
 
-                // Global variance
-                if(varianceType == 1){
-                    dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
-                    maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[currentTimestep].data(), boxes.maxOpacities_[currentTimestep].size());
-                    dataVariancesDataBuffer.upload(boxes.dataVariances_[currentTimestep].data(), boxes.dataVariances_[currentTimestep].size());
-                }
+                    // Global variance
+                    if(varianceType == 1){
+                        dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
+                        maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[currentTimestep].data(), boxes.maxOpacities_[currentTimestep].size());
+                        dataVariancesDataBuffer.upload(boxes.dataVariances_[currentTimestep].data(), boxes.dataVariances_[currentTimestep].size());
+                    }
 
-                // Progressive variance
-                if(varianceType == 2){
-                    boxes.initDataProgressive(transferFunctions, currentAttribute, currentTimestep);
-                    dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
-                    maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
-                    dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
+                    // Progressive variance
+                    if(varianceType == 2){
+                        boxes.initDataProgressive(transferFunctions, currentAttribute, currentTimestep);
+                        dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());   
+                        maxOpacitiesDataBuffer.upload(boxes.maxOpacities_[0].data(), boxes.maxOpacities_[0].size());
+                        dataVariancesDataBuffer.upload(boxes.dataVariances_[0].data(), boxes.dataVariances_[0].size());
+                    }
                 }
 
                 timeSinceUpdate = 0.f;
+                markRenderDirty();
             }
         }
     }
@@ -560,22 +651,62 @@ void OptixRenderer::renderUI()
     if(ImGui::CollapsingHeader("Render options", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap))
         if(ImGui::SliderFloat("Alpha threshold", &alphaThreshold, 0.f, .99f)) markRenderDirty();
 
-    if(ImGui::CollapsingHeader("Empty space skipping", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap))
-        if(ImGui::SliderFloat("Opacity threshold", &opacityThreshold, .0f, 1.f)) markRenderDirty();
+    if(!useElementField)
+    {
+        if(ImGui::CollapsingHeader("Empty space skipping", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap))
+            if(ImGui::SliderFloat("Opacity threshold", &opacityThreshold, .0f, 1.f)) markRenderDirty();
+    }
+    else
+    {
+        ImGui::TextDisabled("Empty-space skipping is disabled for $ElementNodeData.");
+    }
 
-    if(ImGui::CollapsingHeader("Adaptive sampling", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap)){
-        if(ImGui::SliderFloat("Sampling power", &samplingPower, 1.f, 5.f)) markRenderDirty();
-        if(ImGui::SliderFloat("Min sample period", &minSamplePeriod, .005f, maxSamplePeriod)) markRenderDirty();
-        if(ImGui::SliderFloat("Max sample period", &maxSamplePeriod, minSamplePeriod, 6.f)) markRenderDirty();
+    if(!useElementField)
+    {
+        if(ImGui::CollapsingHeader("Adaptive sampling", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap)){
+            if(ImGui::SliderFloat("Sampling power", &samplingPower, 1.f, 5.f)) markRenderDirty();
+            if(ImGui::SliderFloat("Min sample period", &minSamplePeriod, .005f, maxSamplePeriod)) markRenderDirty();
+            if(ImGui::SliderFloat("Max sample period", &maxSamplePeriod, minSamplePeriod, 6.f)) markRenderDirty();
+        }
+    }
+    else
+    {
+        if(ImGui::CollapsingHeader("Sampling", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap))
+        {
+            if(ImGui::SliderFloat("Sample period", &minSamplePeriod, .005f, 6.f)) markRenderDirty();
+        }
     }
 
     if(ImGui::CollapsingHeader("Interpolation Strategy", ImGuiTreeNodeFlags_DefaultOpen|ImGuiTreeNodeFlags_AllowItemOverlap)){
         if(ImGui::RadioButton("Linear", &interpolationStrategy, 0)) markRenderDirty();
         ImGui::SameLine();
-        if(ImGui::RadioButton("High-Order (Least Squares)", &interpolationStrategy, 1)) markRenderDirty();
+        if(ImGui::RadioButton("High-Order", &interpolationStrategy, 1)) markRenderDirty();
         ImGui::SameLine();
         if(ImGui::RadioButton("Difference", &interpolationStrategy, 2)) markRenderDirty();
     }
+}
+
+void OptixRenderer::selectNodalField(size_t index)
+{
+    useElementField = false;
+    currentAttribute = static_cast<uint32_t>(index);
+    currentTimestep = 0;
+    updateOrCreatePhysicalValuesSSBO();
+    updateOrCreateTransferFunctionTexture();
+    onCurrentAttributeChanged();
+    markRenderDirty();
+}
+
+void OptixRenderer::selectElementField(size_t index)
+{
+    useElementField = true;
+    currentElementField = static_cast<uint32_t>(index);
+    currentTimestep = 0;
+    elementFieldBufferDirty = true;
+    updateElementFieldBuffer();
+    updateOrCreateTransferFunctionTexture();
+    onCurrentAttributeChanged();
+    markRenderDirty();
 }
 
 void OptixRenderer::updateOrCreateTransferFunctionTexture()
@@ -594,27 +725,43 @@ void OptixRenderer::updateOrCreateTransferFunctionTexture()
         height,
         cudaMemcpyHostToDevice));
 
-    // One step variance
-    if(varianceType == 0){
-        boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
-    }
+    if(!useElementField)
+    {
+        // One step variance
+        if(varianceType == 0){
+            boxes.generateData(transferFunctions, currentAttribute, currentTimestep);
+        }
 
-    // Global variance
-    if(varianceType == 1){
-        boxes.generateData(transferFunctions, currentAttribute);
-    }
+        // Global variance
+        if(varianceType == 1){
+            boxes.generateData(transferFunctions, currentAttribute);
+        }
 
-    // Progressive variance
-    if(varianceType == 2){
-        boxes.initDataProgressive(transferFunctions, currentAttribute, currentTimestep);
-    }
+        // Progressive variance
+        if(varianceType == 2){
+            boxes.initDataProgressive(transferFunctions, currentAttribute, currentTimestep);
+        }
 
-    updateBoxesDataBuffer();
+        updateBoxesDataBuffer();
+    }
     markRenderDirty();
 }
 
 void OptixRenderer::updateOrCreatePhysicalValuesSSBO()
 {
+    if(useElementField)
+    {
+        // $ElementNodeData is uploaded through
+        // updateElementFieldBuffer(), not through the
+        // legacy nodal-data buffer.
+        currentTimestep = 0;
+
+        updateElementFieldBuffer();
+
+        markRenderDirty();
+        return;
+    }
+
     currentTimestep = 0;
 
     // One step variance
@@ -639,8 +786,176 @@ void OptixRenderer::updateOrCreatePhysicalValuesSSBO()
 
 void OptixRenderer::updatePhysicalDataBuffer()
 {
-    dataDataBuffer.upload(mesh->physical_datas_[currentAttribute][currentTimestep].data(), mesh->physical_datas_[currentAttribute][currentTimestep].size());
+    if(mesh->physical_datas_.empty() || currentAttribute >= mesh->physical_datas_.size()) return;
+    if(currentTimestep >= mesh->physical_datas_[currentAttribute].size()) return;
+
+    const auto& data_vec = mesh->physical_datas_[currentAttribute][currentTimestep];
+    if(data_vec.empty()) return;
+
+    const size_t required_bytes = data_vec.size() * sizeof(float);
+
+    if(dataDataBuffer.d_pointer() == 0)
+    {
+        dataDataBuffer.alloc_and_upload(data_vec, "Physical data field");
+    }
+    else
+    {
+        if(dataDataBuffer.sizeInBytes != required_bytes)
+        {
+            dataDataBuffer.resize(required_bytes, "Physical data field");
+        }
+        dataDataBuffer.upload(data_vec.data(), data_vec.size());
+    }
+
     markRenderDirty();
+}
+
+void OptixRenderer::updateElementFieldBuffer()
+{
+    if(!useElementField || !mesh->has_element_scalar_fields())
+    {
+        launchData.elementField.values = nullptr;
+        launchData.elementField.cellType = 0;
+        launchData.elementField.fieldOrder = 0;
+        launchData.elementField.dofsPerCell = 0;
+        launchData.elementField.components = 0;
+        launchData.elementField.enabled = 0;
+
+        return;
+    }
+
+    if(currentElementField >= mesh->get_number_of_element_scalar_fields())
+    {
+        throw std::runtime_error("Invalid ElementScalarField index");
+    }
+
+    const ElementScalarField& field = mesh->get_element_scalar_field(currentElementField);
+
+    if(field.components != 1)
+    {
+        throw std::runtime_error(
+            "The CUDA renderer currently supports "
+            "only scalar ElementNodeData fields");
+    }
+
+    if(field.values.empty())
+    {
+        throw std::runtime_error("ElementScalarField contains no timestep");
+    }
+
+    if(currentTimestep >= field.values.size())
+    {
+        currentTimestep = 0;
+    }
+
+    const std::vector<float>& values = field.values[currentTimestep];
+
+    if(values.empty())
+    {
+        throw std::runtime_error("Selected ElementScalarField timestep is empty");
+    }
+
+    const uint32_t number_of_cells = mesh->number_of_cells_per_type_[field.cell_type];
+    const size_t expected_value_count = static_cast<size_t>(number_of_cells) * field.dofs_per_cell * field.components;
+
+    if(values.size() != expected_value_count)
+    {
+        throw std::runtime_error(
+            "ElementNodeData GPU upload size mismatch: "
+            "expected "
+            + std::to_string(expected_value_count)
+            + " values, received "
+            + std::to_string(values.size()));
+    }
+
+    const size_t required_size = values.size() * sizeof(float);
+
+    if(elementFieldDataBuffer.d_ptr == nullptr)
+    {
+        elementFieldDataBuffer.alloc(required_size, "Element-local scalar field");
+    }
+    else if(elementFieldDataBuffer.sizeInBytes != required_size)
+    {
+        elementFieldDataBuffer.resize(required_size, "Element-local scalar field");
+    }
+
+    elementFieldDataBuffer.upload(values.data(), values.size());
+
+    launchData.elementField.values = reinterpret_cast<const float*>(elementFieldDataBuffer.d_pointer());
+    launchData.elementField.cellType = field.cell_type;
+    launchData.elementField.fieldOrder = field.field_order;
+    launchData.elementField.dofsPerCell = field.dofs_per_cell;
+    launchData.elementField.components = field.components;
+    launchData.elementField.enabled = 1;
+
+    // Check if the field is compatible with the current mesh cell type
+    // static bool printed_element_field_info = false;
+
+    // if(!printed_element_field_info)
+    // {
+    //     std::cout
+    //         << "[ElementNodeData] active field"
+    //         << std::endl;
+
+    //     std::cout
+    //         << "  name          : "
+    //         << field.name
+    //         << std::endl;
+
+    //     std::cout
+    //         << "  cell type     : "
+    //         << field.cell_type
+    //         << std::endl;
+
+    //     std::cout
+    //         << "  field order   : P"
+    //         << field.field_order
+    //         << std::endl;
+
+    //     std::cout
+    //         << "  dofs per cell : "
+    //         << field.dofs_per_cell
+    //         << std::endl;
+
+    //     std::cout
+    //         << "  components    : "
+    //         << field.components
+    //         << std::endl;
+
+    //     std::cout
+    //         << "  timestep      : "
+    //         << currentTimestep
+    //         << std::endl;
+
+    //     std::cout
+    //         << "  value count   : "
+    //         << values.size()
+    //         << std::endl;
+
+    //     printed_element_field_info = true;
+    // }
+}
+
+uint32_t OptixRenderer::getActiveFieldTimestepCount() const
+{
+    if(useElementField)
+    {
+        if(!mesh->has_element_scalar_fields() || currentElementField >= mesh->get_number_of_element_scalar_fields())
+        {
+            return 0;
+        }
+
+        const ElementScalarField& field = mesh->get_element_scalar_field(currentElementField);
+
+        return static_cast<uint32_t>(field.values.size());
+    }
+
+    if(currentAttribute >= mesh->physical_data_n_steps_.size())
+    {
+        return 0;
+    }
+
+    return mesh->physical_data_n_steps_[currentAttribute];
 }
 
 void OptixRenderer::updateBoxesDataBuffer()
@@ -966,7 +1281,10 @@ void OptixRenderer::buildSBT()
 
     // Upload mesh data
     vertexDataBuffer.alloc_and_upload(mesh->vertices_, "Vertex coordinates");
-    dataDataBuffer.alloc_and_upload(mesh->physical_datas_[currentAttribute][currentTimestep], "Physical data field");
+    if(!mesh->physical_datas_.empty() && !mesh->physical_datas_[currentAttribute].empty())
+    {
+        dataDataBuffer.alloc_and_upload(mesh->physical_datas_[currentAttribute][currentTimestep], "Physical data field");
+    }
     triangleDataBuffer.alloc_and_upload(meshTrianglesVertexData, "Shared triangles");
     tetrahedron4DataBuffer.alloc_and_upload(mesh->cells_[TETRAHEDRON4], "Tetrahedron4");
     hexahedron8DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON8], "Hexahedron8");
@@ -978,14 +1296,25 @@ void OptixRenderer::buildSBT()
     tetrahedron20DataBuffer.alloc_and_upload(mesh->cells_[TETRAHEDRON20], "Tetrahedron20");
     
     // Upload boxes data
-    maxOpacitiesDataBuffer.alloc_and_upload(boxes.maxOpacities_[0], "Boxes max opacities");
-    dataVariancesDataBuffer.alloc_and_upload(boxes.dataVariances_[0], "Boxes data variances");
+    if(!useElementField)
+    {
+        maxOpacitiesDataBuffer.alloc_and_upload(boxes.maxOpacities_[0], "Boxes max opacities");
+        dataVariancesDataBuffer.alloc_and_upload(boxes.dataVariances_[0], "Boxes data variances");
+    }
+    else
+    {
+        std::vector<float> neutral_max_opacities(boxes.numberOfBoxes_, 1.f);
+        std::vector<float> neutral_variances(boxes.numberOfBoxes_, 0.f);
+
+        maxOpacitiesDataBuffer.alloc_and_upload(neutral_max_opacities, "Neutral boxes max opacities");
+        dataVariancesDataBuffer.alloc_and_upload(neutral_variances, "Neutral boxes data variances");
+    }
 
     // Set ray generation data
     RayGenRecord rayGenData;
 
     rayGenData.data.mesh.vertices = (float3*) vertexDataBuffer.d_pointer();
-    rayGenData.data.mesh.datas = (float*) dataDataBuffer.d_pointer();
+    rayGenData.data.mesh.datas = reinterpret_cast<float*>(dataDataBuffer.d_pointer());
     rayGenData.data.mesh.triangles = (Triangle*) triangleDataBuffer.d_pointer();
     rayGenData.data.mesh.cells.tetrahedrons4 = (Tetrahedron4*) tetrahedron4DataBuffer.d_pointer();
     rayGenData.data.mesh.cells.hexahedrons8 = (Hexahedron8*) hexahedron8DataBuffer.d_pointer();
