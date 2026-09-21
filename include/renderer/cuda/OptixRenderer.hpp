@@ -111,6 +111,7 @@ private:
     CUDABuffer pyramid5DataBuffer;
     CUDABuffer hexahedron20DataBuffer;
     CUDABuffer hexahedron27DataBuffer;
+    CUDABuffer hexahedron64DataBuffer;
     CUDABuffer hitgroupRecordsDataBuffer; 
     CUDABuffer leastSquaresMatrixBuffer; // Hex20 10x20 M+
     CUDABuffer tet4MatrixBuffer;         // Tet4  10x4  M+

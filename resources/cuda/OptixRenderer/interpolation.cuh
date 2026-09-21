@@ -52,6 +52,15 @@ __device__ __constant__ float BARY_NODES_ORDER3[4] = {
 #define MAX_HEX_NODES    64  // 4^3, upper bound for order 3
 #define MAX_TET_NODES_1D 4   // supports up to order 3
 #define MAX_TET_NODES    20  // order 3 tet has 20 nodes
+
+// Order 1: n = 2 nodes per direction
+__device__ __constant__ float NODES_1D_ORDER1[2] = { -1.f, 1.f };
+
+__device__ __constant__ int HEX8_NODE_IJK[8][3] = {
+    {0,0,0},{1,0,0},{1,1,0},{0,1,0},
+    {0,0,1},{1,0,1},{1,1,1},{0,1,1}
+};
+
 // Order 2: n = 3 nodes per direction
 __device__ __constant__ float NODES_1D_ORDER2[3] = { -1.f, 0.f, 1.f };
 
@@ -59,6 +68,18 @@ __device__ __constant__ float NODES_1D_ORDER2[3] = { -1.f, 0.f, 1.f };
 __device__ __constant__ float NODES_1D_ORDER3[4] = {
     -1.f, -0.333333333333f, 0.333333333333f, 1.f
 };
+
+// Forward declarations
+static __forceinline__ __device__ void hex20ShapeFunctions(
+    float g, float h, float r, 
+    float* N);
+
+static __forceinline__ __device__ void hex20ShapeFunctionsDerivatives(
+    float g, float h, float r, 
+    float* dNdg, float* dNdh, float* dNdr);
+
+static __forceinline__ __device__ float3 getHex20ReferencePoint(
+    const float3* verts, float3 samplePoint);
 
 // ============================================================================
 // Generic 1D Lagrange basis and its derivative
@@ -659,6 +680,203 @@ float evaluateTetrahedralElementField(
         }
 
         return fabsf(valLinear - valHighOrder) * 25.f;
+    }
+
+    return 0.f;
+}
+
+static __forceinline__ __device__
+float3 getHexahedronReferencePoint(
+    const MeshData* mesh,
+    uint32_t cellID,
+    uint32_t cellType,
+    float3 samplePoint)
+{
+    switch(cellType)
+    {
+        case HEXAHEDRON8:
+        {
+            const Hexahedron8 cell = mesh->cells.hexahedrons8[cellID];
+            float3 vertices[8];
+            #pragma unroll
+            for(int i = 0; i < 8; ++i)
+                vertices[i] = mesh->vertices[cell.vertices[i]];
+
+            return getHexNReferencePoint(vertices, HEX8_NODE_IJK, NODES_1D_ORDER1, 2, 8, samplePoint);
+        }
+
+        case HEXAHEDRON20:
+        {
+            const Hexahedron20 cell = mesh->cells.hexahedrons20[cellID];
+            float3 vertices[20];
+            #pragma unroll
+            for(int i = 0; i < 20; ++i)
+                vertices[i] = mesh->vertices[cell.vertices[i]];
+
+            return getHex20ReferencePoint(vertices, samplePoint);
+        }
+
+        case HEXAHEDRON27:
+        {
+            const Hexahedron27 cell = mesh->cells.hexahedrons27[cellID];
+            float3 vertices[27];
+            #pragma unroll
+            for(int i = 0; i < 27; ++i)
+                vertices[i] = mesh->vertices[cell.vertices[i]];
+
+            return getHexNReferencePoint(vertices, HEX27_NODE_IJK, NODES_1D_ORDER2, 3, 27, samplePoint);
+        }
+
+        case HEXAHEDRON64:
+        {
+            const Hexahedron64 cell = mesh->cells.hexahedrons64[cellID];
+            float3 vertices[64];
+            #pragma unroll
+            for(int i = 0; i < 64; ++i)
+                vertices[i] = mesh->vertices[cell.vertices[i]];
+
+            return getHexNReferencePoint(vertices, HEX64_NODE_IJK, NODES_1D_ORDER3, 4, 64, samplePoint);
+        }
+
+        default:
+            return make_float3(0.f, 0.f, 0.f);
+    }
+}
+
+static __forceinline__ __device__
+float evaluateLinearHexField(
+    const float* coefficients,
+    const float3 ref)
+{
+    float N[8];
+    hexNShapeFunctions(ref.x, ref.y, ref.z, HEX8_NODE_IJK, NODES_1D_ORDER1, 2, 8, N);
+
+    float result = 0.f;
+    #pragma unroll
+    for(int i = 0; i < 8; ++i)
+    {
+        result += N[i] * coefficients[i];
+    }
+    return result;
+}
+
+static __forceinline__ __device__
+float evaluateHexahedralElementField(
+    const ElementFieldData& field,
+    uint32_t localCellID,
+    const float3 ref,
+    int strategy)
+{
+    const size_t base = static_cast<size_t>(localCellID) * field.dofsPerCell * field.components;
+    const float* coefficients = field.values + base;
+
+    if(field.components != 1) return 0.f;
+
+    // Strategy 0: Linear
+    if(strategy == 0)
+    {
+        return evaluateLinearHexField(coefficients, ref);
+    }
+
+    // Strategy 1: High Order
+    if(strategy == 1)
+    {
+        switch(field.fieldOrder)
+        {
+            case 1:
+            {
+                return evaluateLinearHexField(coefficients, ref);
+            }
+
+            case 2:
+            {
+                if(field.dofsPerCell == 27)
+                {
+                    float N[27];
+                    hexNShapeFunctions(ref.x, ref.y, ref.z, HEX27_NODE_IJK, NODES_1D_ORDER2, 3, 27, N);
+
+                    float result = 0.f;
+                    for(int i = 0; i < 27; ++i)
+                    {
+                        result += N[i] * coefficients[i];
+                    }
+                    return result;
+                }
+                else if(field.dofsPerCell == 20)
+                {
+                    float N[20];
+                    hex20ShapeFunctions(ref.x, ref.y, ref.z, N);
+
+                    float result = 0.f;
+                    for(int i = 0; i < 20; ++i)
+                    {
+                        result += N[i] * coefficients[i];
+                    }
+                    return result;
+                }
+                return evaluateLinearHexField(coefficients, ref);
+            }
+
+            case 3:
+            {
+                if(field.dofsPerCell == 64)
+                {
+                    float N[64];
+                    hexNShapeFunctions(ref.x, ref.y, ref.z, HEX64_NODE_IJK, NODES_1D_ORDER3, 4, 64, N);
+
+                    float result = 0.f;
+                    for(int i = 0; i < 64; ++i)
+                    {
+                        result += N[i] * coefficients[i];
+                    }
+                    return result;
+                }
+                return evaluateLinearHexField(coefficients, ref);
+            }
+
+            default:
+                return evaluateLinearHexField(coefficients, ref);
+        }
+    }
+
+    // Strategy 2: Difference
+    if(strategy == 2)
+    {
+        const float valLinear = evaluateLinearHexField(coefficients, ref);
+        float valHighOrder = 0.f;
+
+        if(field.fieldOrder == 1)
+        {
+            valHighOrder = valLinear;
+        }
+        else if(field.fieldOrder == 2)
+        {
+            if(field.dofsPerCell == 27)
+            {
+                float N[27];
+                hexNShapeFunctions(ref.x, ref.y, ref.z, HEX27_NODE_IJK, NODES_1D_ORDER2, 3, 27, N);
+                for(int i = 0; i < 27; ++i) valHighOrder += N[i] * coefficients[i];
+            }
+            else if(field.dofsPerCell == 20)
+            {
+                float N[20];
+                hex20ShapeFunctions(ref.x, ref.y, ref.z, N);
+                for(int i = 0; i < 20; ++i) valHighOrder += N[i] * coefficients[i];
+            }
+            else valHighOrder = valLinear;
+        }
+        else if(field.fieldOrder == 3 && field.dofsPerCell == 64)
+        {
+            float N[64];
+            hexNShapeFunctions(ref.x, ref.y, ref.z, HEX64_NODE_IJK, NODES_1D_ORDER3, 4, 64, N);
+            for(int i = 0; i < 64; ++i) valHighOrder += N[i] * coefficients[i];
+        }
+        else
+        {
+            valHighOrder = valLinear;
+        }
+
+        return fabsf(valLinear - valHighOrder);
     }
 
     return 0.f;
@@ -1499,6 +1717,18 @@ static __forceinline__ __device__ float3 getHex20ReferencePoint(
     }
     
     return curRef;
+}
+
+static __forceinline__ __device__ float3 getHex20ReferencePoint(
+    const float3* verts, float3 samplePoint)
+{
+    return getHex20ReferencePoint(
+        verts[0],  verts[1],  verts[2],  verts[3],
+        verts[4],  verts[5],  verts[6],  verts[7],
+        verts[8],  verts[9],  verts[10], verts[11],
+        verts[12], verts[13], verts[14], verts[15],
+        verts[16], verts[17], verts[18], verts[19],
+        samplePoint);
 }
 
 // Alternative Newton-Raphson using the same monomial basis as the M matrix:

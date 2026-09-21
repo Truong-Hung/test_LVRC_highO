@@ -27,6 +27,8 @@
 
 // Order 3
 #define TETRAHEDRON_3       9
+#define HEXAHEDRON_3        10 // Hexahedron with 64 nodes (cubic)
+
 
 
 

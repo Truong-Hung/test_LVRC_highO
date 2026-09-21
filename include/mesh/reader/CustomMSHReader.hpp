@@ -101,6 +101,7 @@ private:
     uint32_t convert_cell_type(uint32_t msh_cell_type);
 
     static uint32_t get_tetrahedral_field_order(uint32_t dofs_per_cell);
+    static uint32_t get_hexahedral_field_order(uint32_t dofs_per_cell);
 };
 
 #endif

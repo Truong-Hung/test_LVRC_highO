@@ -541,20 +541,28 @@ void CustomMSHReader::read_element_physical_data(
                     FieldBasis::GmshLagrange;
 
 
-                // Only tetrahedral Gmsh Lagrange fields for now
-                if(new_field.cell_type != TETRAHEDRON_1
-                && new_field.cell_type != TETRAHEDRON_2
-                && new_field.cell_type != TETRAHEDRON_3)
+                // Support tetrahedral and hexahedral Gmsh Lagrange fields
+                if(new_field.cell_type == TETRAHEDRON_1 ||
+                   new_field.cell_type == TETRAHEDRON_2 ||
+                   new_field.cell_type == TETRAHEDRON_3)
+                {
+                    new_field.field_order = get_tetrahedral_field_order(new_field.dofs_per_cell);
+                }
+                else if(new_field.cell_type == HEXAHEDRON_1 ||
+                        new_field.cell_type == HEXAHEDRON_2 ||
+                        new_field.cell_type == HEXAHEDRON_2_FULL ||
+                        new_field.cell_type == HEXAHEDRON_3)
+                {
+                    new_field.field_order = get_hexahedral_field_order(new_field.dofs_per_cell);
+                }
+                else
                 {
                     std::cerr
-                        << "[ERROR] $ElementNodeData is only "
-                        << "supported on tetrahedra for now"
-                        << std::endl;
+                        << "[ERROR] $ElementNodeData is not supported for cell type "
+                        << new_field.cell_type << std::endl;
 
                     std::exit(EXIT_FAILURE);
                 }
-
-                new_field.field_order = get_tetrahedral_field_order(new_field.dofs_per_cell);
             }
             else
             {
@@ -858,6 +866,18 @@ uint32_t CustomMSHReader::get_tetrahedral_field_order(
         + std::to_string(dofs_per_cell));
 }
 
+uint32_t CustomMSHReader::get_hexahedral_field_order(
+    uint32_t dofs_per_cell)
+{
+    if (dofs_per_cell == 8) return 1;
+    if (dofs_per_cell == 20 || dofs_per_cell == 27) return 2;
+    if (dofs_per_cell == 64) return 3;
+
+    throw std::runtime_error(
+        "Unsupported hexahedral ElementNodeData size: "
+        + std::to_string(dofs_per_cell));
+}
+
 uint32_t CustomMSHReader::convert_cell_type(uint32_t msh_cell_type)
 {
     switch(msh_cell_type){
@@ -881,8 +901,10 @@ uint32_t CustomMSHReader::convert_cell_type(uint32_t msh_cell_type)
             return PYRAMID4_2;
         case 29:
             return TETRAHEDRON_3;   // Third order tetrahedron
+        case 92:
+            return HEXAHEDRON_3;    // Third order hexahedron (Hex64)
         default:
-            std::cerr << "[ERROR] Non supported cell type encountered" << std::endl;
+            std::cerr << "[ERROR] Non supported cell type encountered " << msh_cell_type << std::endl;
             std::exit(EXIT_FAILURE);
     }
 }

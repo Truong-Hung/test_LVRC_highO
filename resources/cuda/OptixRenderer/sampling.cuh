@@ -426,6 +426,44 @@ static __forceinline__ __device__ float sample(
     return 0.f;
 }
 
+static __forceinline__ __device__ float sample(
+    MeshData* mesh, 
+    Hexahedron64 cell, 
+    float3 samplePoint,
+    int strategy)
+{
+    float3 verts[64];
+    float data[64];
+    #pragma unroll
+    for(int i = 0; i < 64; ++i) {
+        verts[i] = mesh->vertices[cell.vertices[i]];
+        data[i]  = mesh->datas[cell.vertices[i]];
+    }
+
+    if (strategy == 0) {
+        return linearInterpolation(
+            verts[0], data[0], verts[1], data[1],
+            verts[2], data[2], verts[3], data[3],
+            verts[4], data[4], verts[5], data[5],
+            verts[6], data[6], verts[7], data[7],
+            samplePoint);
+    }
+    else if (strategy == 1) {
+        return lagrangeInterpolationHex64(verts, data, samplePoint);
+    }
+    else if (strategy == 4) {
+        float valLinear = linearInterpolation(
+            verts[0], data[0], verts[1], data[1],
+            verts[2], data[2], verts[3], data[3],
+            verts[4], data[4], verts[5], data[5],
+            verts[6], data[6], verts[7], data[7],
+            samplePoint);
+        float valHighOrder = lagrangeInterpolationHex64(verts, data, samplePoint);
+        return fabsf(valLinear - valHighOrder) * 25.f;
+    }
+    return 0.f;
+}
+
 static __forceinline__ __device__ float sampleCell(
     MeshData* mesh,
     const ElementFieldData& elementField,
@@ -444,25 +482,45 @@ static __forceinline__ __device__ float sampleCell(
             return 0.f;
         }
 
-        if(cellType != TETRAHEDRON4
-        && cellType != TETRAHEDRON10
-        && cellType != TETRAHEDRON20)
+        if(cellType == TETRAHEDRON4
+        || cellType == TETRAHEDRON10
+        || cellType == TETRAHEDRON20)
+        {
+            const float4 bary =
+                getTetrahedronReferencePoint(
+                    mesh,
+                    cellID,
+                    cellType,
+                    samplePoint);
+
+            return evaluateTetrahedralElementField(
+                elementField,
+                cellID,
+                bary,
+                strategy);
+        }
+        else if(cellType == HEXAHEDRON8
+             || cellType == HEXAHEDRON20
+             || cellType == HEXAHEDRON27
+             || cellType == HEXAHEDRON64)
+        {
+            const float3 ref =
+                getHexahedronReferencePoint(
+                    mesh,
+                    cellID,
+                    cellType,
+                    samplePoint);
+
+            return evaluateHexahedralElementField(
+                elementField,
+                cellID,
+                ref,
+                strategy);
+        }
+        else
         {
             return 0.f;
         }
-
-        const float4 bary =
-            getTetrahedronReferencePoint(
-                mesh,
-                cellID,
-                cellType,
-                samplePoint);
-
-        return evaluateTetrahedralElementField(
-            elementField,
-            cellID,
-            bary,
-            strategy);
     }
 
     // Sample according to cell type
@@ -475,6 +533,7 @@ static __forceinline__ __device__ float sampleCell(
         case TETRAHEDRON20: return sample(mesh, mesh->cells.tetrahedrons20[cellID], samplePoint, strategy);
         case HEXAHEDRON20:  return sample(mesh, mesh->cells.hexahedrons20[cellID], samplePoint, M_plus, strategy);
         case HEXAHEDRON27:  return sample(mesh, mesh->cells.hexahedrons27[cellID], samplePoint, strategy);
+        case HEXAHEDRON64:  return sample(mesh, mesh->cells.hexahedrons64[cellID], samplePoint, strategy);
         default:            return 1.f;
     }
 }

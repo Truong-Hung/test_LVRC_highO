@@ -18,7 +18,7 @@
 
 // Order 3
 #define TETRAHEDRON20   9
-
+#define HEXAHEDRON64    10
 
 
 // Triangle connectivity
@@ -60,10 +60,16 @@ struct Hexahedron20
     unsigned int vertices[20];
 };
 
-// Hexahedron20 vertex indices
+// Hexahedron27 vertex indices
 struct Hexahedron27
 {
     unsigned int vertices[27];
+};
+
+// Hexahedron64 vertex indices
+struct Hexahedron64
+{
+    unsigned int vertices[64];
 };
 
 // Tetrahedron10 vertex indices
@@ -89,6 +95,7 @@ struct Cells
     Hexahedron20* hexahedrons20;
     Hexahedron27* hexahedrons27;
     Tetrahedron20* tetrahedrons20;
+    Hexahedron64* hexahedrons64;
     // Prism15* prisms15;
     // Pyramid13* pyramids13;  
 };

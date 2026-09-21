@@ -1294,6 +1294,7 @@ void OptixRenderer::buildSBT()
     hexahedron20DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON20], "Hexahedron20");
     hexahedron27DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON_2_FULL], "Hexahedron27");
     tetrahedron20DataBuffer.alloc_and_upload(mesh->cells_[TETRAHEDRON20], "Tetrahedron20");
+    hexahedron64DataBuffer.alloc_and_upload(mesh->cells_[HEXAHEDRON_3], "Hexahedron64");
     
     // Upload boxes data
     if(!useElementField)
@@ -1324,6 +1325,7 @@ void OptixRenderer::buildSBT()
     rayGenData.data.mesh.cells.hexahedrons20 = (Hexahedron20*) hexahedron20DataBuffer.d_pointer();
     rayGenData.data.mesh.cells.hexahedrons27 = (Hexahedron27*) hexahedron27DataBuffer.d_pointer();
     rayGenData.data.mesh.cells.tetrahedrons20 = (Tetrahedron20*) tetrahedron20DataBuffer.d_pointer();
+    rayGenData.data.mesh.cells.hexahedrons64 = (Hexahedron64*) hexahedron64DataBuffer.d_pointer();
     rayGenData.data.boxes.maxOpacities = (float*) maxOpacitiesDataBuffer.d_pointer();
     rayGenData.data.boxes.dataVariances = (float*) dataVariancesDataBuffer.d_pointer();
 
