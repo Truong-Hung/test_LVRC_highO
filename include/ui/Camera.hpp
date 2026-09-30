@@ -8,6 +8,26 @@
 
 DECLARE_DELEGATE_MULTICAST(OnCameraMoved)
 
+#include <string>
+#include <vector>
+#include <glm/gtc/quaternion.hpp>
+
+struct CameraPose
+{
+	std::string name = "Preset";
+	glm::vec3 position{0.0f};
+	glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+	float distance{0.0f};
+	float fieldOfView{45.0f};
+
+	CameraPose() = default;
+	CameraPose(std::string inName, glm::vec3 inPos, glm::quat inRot, float inDist, float inFov)
+		: name(std::move(inName)), position(inPos), rotation(inRot), distance(inDist), fieldOfView(inFov) {}
+
+	[[nodiscard]] std::string toString() const;
+	static bool fromString(const std::string& str, CameraPose& outPose);
+};
+
 class Camera
 {
 public:
@@ -33,6 +53,12 @@ public:
 	[[nodiscard]] glm::quat getRotation() const { return rotation; }
 	[[nodiscard]] float getDistance() const { return distance; }
 	void setDistance(float newDistance);
+
+	[[nodiscard]] CameraPose getPose(const std::string& name = "") const;
+	void setPose(const CameraPose& pose);
+
+	static bool savePresetsToFile(const std::string& filepath, const std::vector<CameraPose>& presets);
+	static bool loadPresetsFromFile(const std::string& filepath, std::vector<CameraPose>& outPresets);
 
 	OnCameraMoved onCameraMoved;
 

@@ -5,6 +5,10 @@
 
 
 #include <unordered_map>
+#include <cmath>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
 #include "mesh/reader/CustomMSHReader.hpp"
 
 CustomMSHReader::CustomMSHReader(std::string file_path)
@@ -846,8 +850,7 @@ void CustomMSHReader::read_element_physical_data(
     }
 }
 
-uint32_t CustomMSHReader::get_tetrahedral_field_order(
-    uint32_t dofs_per_cell)
+uint32_t CustomMSHReader::get_tetrahedral_field_order(uint32_t dofs_per_cell)
 {
     for(uint32_t order = 1; order <= 10; ++order)
     {
@@ -866,16 +869,57 @@ uint32_t CustomMSHReader::get_tetrahedral_field_order(
         + std::to_string(dofs_per_cell));
 }
 
-uint32_t CustomMSHReader::get_hexahedral_field_order(
-    uint32_t dofs_per_cell)
+uint32_t CustomMSHReader::get_hexahedral_field_order(uint32_t dofs_per_cell)
 {
-    if (dofs_per_cell == 8) return 1;
-    if (dofs_per_cell == 20 || dofs_per_cell == 27) return 2;
-    if (dofs_per_cell == 64) return 3;
+    // Hex20 is the incomplete/serendipity
+    // second-order hexahedron.
+    if(dofs_per_cell == 20)
+    {
+        return 2;
+    }
 
-    throw std::runtime_error(
-        "Unsupported hexahedral ElementNodeData size: "
-        + std::to_string(dofs_per_cell));
+    // A complete tensor-product hexahedral field
+    // of order p contains:
+    //
+    //     (p + 1)^3
+    //
+    // local DOFs.
+    const uint32_t nodes_per_direction =
+        static_cast<uint32_t>(
+            std::llround(
+                std::cbrt(
+                    static_cast<double>(
+                        dofs_per_cell))));
+
+    if(nodes_per_direction < 2)
+    {
+        throw std::runtime_error(
+            "Invalid hexahedral ElementNodeData size: "
+            + std::to_string(dofs_per_cell));
+    }
+
+    const uint64_t reconstructed_dof_count =
+        static_cast<uint64_t>(
+            nodes_per_direction)
+        * static_cast<uint64_t>(
+            nodes_per_direction)
+        * static_cast<uint64_t>(
+            nodes_per_direction);
+
+    if(reconstructed_dof_count
+    != static_cast<uint64_t>(
+        dofs_per_cell))
+    {
+        throw std::runtime_error(
+            "Unsupported hexahedral ElementNodeData "
+            "size: "
+            + std::to_string(dofs_per_cell)
+            + ". Expected 20 DOFs for Hex20 or "
+              "(p + 1)^3 DOFs for a complete "
+              "tensor-product hexahedral field.");
+    }
+
+    return nodes_per_direction - 1;
 }
 
 uint32_t CustomMSHReader::convert_cell_type(uint32_t msh_cell_type)

@@ -220,6 +220,20 @@ void OptixRenderer::triangularizeMesh()
     uint32_t numberOfCellTypes = Cell::get_number_of_cell_types();
     localCellOffset.resize(numberOfCellTypes);
 
+    auto appendTriangle =
+        [this, &currentTriangle](
+            uint32_t vertex0,
+            uint32_t vertex1,
+            uint32_t vertex2)
+    {
+        meshTrianglesVertexIDs.push_back(vertex0);
+        meshTrianglesVertexIDs.push_back(vertex1);
+        meshTrianglesVertexIDs.push_back(vertex2);
+
+        meshTrianglesVertexData.push_back(
+            currentTriangle);
+    };
+
     for(uint32_t cellType = 0; cellType < numberOfCellTypes; cellType++){
         for(uint32_t offset = cellType; offset < numberOfCellTypes; offset++){
             localCellOffset[offset] += currentOffset;
@@ -369,6 +383,19 @@ void OptixRenderer::triangularizeMesh()
                 meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
                 meshTrianglesVertexData.push_back(currentTriangle);
                 break;
+            case 16:
+            {
+                // Two triangles using corner vertices (indices 0, 3, 6, 9)
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[3]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[0]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[6]);
+                meshTrianglesVertexIDs.push_back(currentFaceVertexIDs[9]);
+                meshTrianglesVertexData.push_back(currentTriangle);
+                break;
+            }
             default:
                 break;
         }

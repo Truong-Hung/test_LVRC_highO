@@ -159,6 +159,174 @@ void Renderer::renderUI()
 
 		if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap))
 		{
+			float fieldOfView = camera->getFov();
+			if (ImGui::SliderFloat("FOV", &fieldOfView, 1.f, 180.f))
+			{
+				camera->setFov(fieldOfView);
+				renderDirty = true;
+			}
+
+			if (ImGui::TreeNodeEx("Camera View Points & Presets", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				static std::vector<CameraPose> cameraPresets = {
+					camera->getPose("Default Angle")
+				};
+				static int selectedPresetIdx = 0;
+				static char presetNameBuf[64] = "My View Point";
+				static char filenameBuf[128] = "camera_presets.txt";
+				static std::string statusMsg = "";
+
+				if (selectedPresetIdx >= static_cast<int>(cameraPresets.size()))
+				{
+					selectedPresetIdx = std::max(0, static_cast<int>(cameraPresets.size()) - 1);
+				}
+
+				// Preset Selector Combo
+				if (!cameraPresets.empty())
+				{
+					const std::string comboLabel = cameraPresets[selectedPresetIdx].name;
+					if (ImGui::BeginCombo("View Angle", comboLabel.c_str()))
+					{
+						for (int i = 0; i < static_cast<int>(cameraPresets.size()); ++i)
+						{
+							const bool isSelected = (selectedPresetIdx == i);
+							if (ImGui::Selectable(cameraPresets[i].name.c_str(), isSelected))
+							{
+								selectedPresetIdx = i;
+							}
+							if (isSelected)
+							{
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+						ImGui::EndCombo();
+					}
+				}
+
+				// Load & Overwrite buttons
+				if (ImGui::Button("Load Angle"))
+				{
+					if (selectedPresetIdx >= 0 && selectedPresetIdx < static_cast<int>(cameraPresets.size()))
+					{
+						camera->setPose(cameraPresets[selectedPresetIdx]);
+						renderDirty = true;
+						statusMsg = "Loaded view: " + cameraPresets[selectedPresetIdx].name;
+					}
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Overwrite"))
+				{
+					if (selectedPresetIdx >= 0 && selectedPresetIdx < static_cast<int>(cameraPresets.size()))
+					{
+						std::string curName = cameraPresets[selectedPresetIdx].name;
+						cameraPresets[selectedPresetIdx] = camera->getPose(curName);
+						statusMsg = "Overwrote view: " + curName;
+					}
+				}
+
+				// Save new preset
+				ImGui::InputText("Name", presetNameBuf, sizeof(presetNameBuf));
+				if (ImGui::Button("Save Current Angle"))
+				{
+					std::string nameStr = (strlen(presetNameBuf) > 0)
+						? presetNameBuf
+						: ("View " + std::to_string(cameraPresets.size() + 1));
+					CameraPose newPose = camera->getPose(nameStr);
+					cameraPresets.push_back(newPose);
+					selectedPresetIdx = static_cast<int>(cameraPresets.size()) - 1;
+					statusMsg = "Saved view: " + nameStr;
+				}
+
+				if (cameraPresets.size() > 1)
+				{
+					ImGui::SameLine();
+					if (ImGui::Button("Delete"))
+					{
+						statusMsg = "Deleted view: " + cameraPresets[selectedPresetIdx].name;
+						cameraPresets.erase(cameraPresets.begin() + selectedPresetIdx);
+						selectedPresetIdx = std::max(0, selectedPresetIdx - 1);
+					}
+				}
+
+				ImGui::Separator();
+				ImGui::Text("File Import / Export:");
+				ImGui::InputText("File", filenameBuf, sizeof(filenameBuf));
+
+				if (ImGui::Button("Save to File"))
+				{
+					if (Camera::savePresetsToFile(filenameBuf, cameraPresets))
+					{
+						statusMsg = "Saved " + std::to_string(cameraPresets.size()) + " view(s) to " + filenameBuf;
+					}
+					else
+					{
+						statusMsg = "Failed to save file: " + std::string(filenameBuf);
+					}
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Load from File"))
+				{
+					std::vector<CameraPose> loaded;
+					if (Camera::loadPresetsFromFile(filenameBuf, loaded))
+					{
+						cameraPresets = loaded;
+						selectedPresetIdx = 0;
+						statusMsg = "Loaded " + std::to_string(loaded.size()) + " view(s) from " + filenameBuf;
+					}
+					else
+					{
+						statusMsg = "Failed to load file: " + std::string(filenameBuf);
+					}
+				}
+
+				ImGui::Separator();
+				if (ImGui::Button("Copy to Clipboard"))
+				{
+					CameraPose curPose = camera->getPose();
+					ImGui::SetClipboardText(curPose.toString().c_str());
+					statusMsg = "Copied camera pose string to clipboard!";
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Paste from Clipboard"))
+				{
+					const char* clipText = ImGui::GetClipboardText();
+					if (clipText)
+					{
+						CameraPose pastedPose;
+						if (CameraPose::fromString(clipText, pastedPose))
+						{
+							camera->setPose(pastedPose);
+							renderDirty = true;
+							statusMsg = "Applied pose from clipboard!";
+						}
+						else
+						{
+							statusMsg = "Invalid pose format in clipboard.";
+						}
+					}
+				}
+
+				if (!statusMsg.empty())
+				{
+					ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "%s", statusMsg.c_str());
+				}
+
+				if (ImGui::TreeNode("Live Camera Info"))
+				{
+					glm::vec3 pos = camera->getPosition();
+					glm::quat rot = camera->getRotation();
+					float dist = camera->getDistance();
+
+					ImGui::Text("Position:  X: %.3f | Y: %.3f | Z: %.3f", pos.x, pos.y, pos.z);
+					ImGui::Text("Rotation:  W: %.3f | X: %.3f | Y: %.3f | Z: %.3f", rot.w, rot.x, rot.y, rot.z);
+					ImGui::Text("Distance:  %.3f", dist);
+					ImGui::Text("FOV:       %.1f deg", camera->getFov());
+					ImGui::TreePop();
+				}
+
+				ImGui::TreePop();
+			}
+
 			if (ImGui::TreeNode("Controls"))
 			{
 				ImGui::Bullet();
@@ -230,13 +398,6 @@ void Renderer::renderUI()
 				ImGui::Text("to recenter.");
 
 				ImGui::TreePop();
-			}
-
-			float fieldOfView = camera->getFov();
-			if (ImGui::SliderFloat("FOV", &fieldOfView, 1.f, 180.f))
-			{
-				camera->setFov(fieldOfView);
-				renderDirty = true;
 			}
 		}
 	}

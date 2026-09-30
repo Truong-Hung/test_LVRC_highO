@@ -5,6 +5,9 @@
 
 #include "renderer/cuda/utils/CUDAStructs.h"
 #include "renderer/cuda/utils/CUDAMath.h"
+#include "Hex343NodeIJK.cuh"
+#include "Hex343LibMeshNodeIJK.cuh"
+
 extern "C" __device__ int g_print_tet10_once;
 
 __device__ __constant__ int HEX27_NODE_IJK[27][3] = {
@@ -16,13 +19,17 @@ __device__ __constant__ int HEX27_NODE_IJK[27][3] = {
 
 __device__ __constant__ int HEX64_NODE_IJK[64][3] = {
     {0,0,0},{3,0,0},{3,3,0},{0,3,0},{0,0,3},{3,0,3},{3,3,3},{0,3,3},
-    {1,0,0},{2,0,0},{0,1,0},{0,2,0},{0,0,1},{0,0,2},{3,1,0},{3,2,0},
-    {3,0,1},{3,0,2},{2,3,0},{1,3,0},{3,3,1},{3,3,2},{0,3,1},{0,3,2},
-    {1,0,3},{2,0,3},{0,1,3},{0,2,3},{3,1,3},{3,2,3},{2,3,3},{1,3,3},
-    {1,1,0},{1,2,0},{2,2,0},{2,1,0},{1,0,1},{2,0,1},{2,0,2},{1,0,2},
-    {0,1,1},{0,1,2},{0,2,2},{0,2,1},{3,1,1},{3,2,1},{3,2,2},{3,1,2},
-    {2,3,1},{1,3,1},{1,3,2},{2,3,2},{1,1,3},{2,1,3},{2,2,3},{1,2,3},
-    {1,1,1},{2,1,1},{2,2,1},{1,2,1},{1,1,2},{2,1,2},{2,2,2},{1,2,2}
+    {1,0,0},{2,0,0},{0,1,0},{0,2,0},{0,0,1},{0,0,2}, // on edge 0-1, 0-2 and 0-3
+    {3,1,0},{3,2,0},{3,0,1},{3,0,2},{2,3,0},{1,3,0}, // on edge 1-2, 1-5 and 2-3
+    {3,3,1},{3,3,2},{0,3,1},{0,3,2},{1,0,3},{2,0,3}, // on edge 2-6, 3-7 and 4-5
+    {0,1,3},{0,2,3},{3,1,3},{3,2,3},{2,3,3},{1,3,3}, // on edge 4-7, 5-6 and 6-7
+    {1,1,0},{1,2,0},{2,2,0},{2,1,0}, // on face 0-3-2-1
+    {1,0,1},{2,0,1},{2,0,2},{1,0,2}, // on face 0-1-5-4
+    {0,1,1},{0,1,2},{0,2,2},{0,2,1}, // on face 0-4-7-3
+    {3,1,1},{3,2,1},{3,2,2},{3,1,2}, // on face 1-2-6-5
+    {2,3,1},{1,3,1},{1,3,2},{2,3,2}, // on face 2-3-7-6
+    {1,1,3},{2,1,3},{2,2,3},{1,2,3}, // on face 4-5-6-7
+    {1,1,1},{2,1,1},{2,2,1},{1,2,1},{1,1,2},{2,1,2},{2,2,2},{1,2,2} //interior nodes
 };
 
 __device__ __constant__ int TET4_NODE_IJKL[4][4] = {
@@ -67,6 +74,19 @@ __device__ __constant__ float NODES_1D_ORDER2[3] = { -1.f, 0.f, 1.f };
 // Order 3: n = 4 nodes per direction
 __device__ __constant__ float NODES_1D_ORDER3[4] = {
     -1.f, -0.333333333333f, 0.333333333333f, 1.f
+};
+
+// Order 6: 7 equidistant nodes per direction.
+__device__ __constant__
+float NODES_1D_ORDER6[7] =
+{
+    -1.0f,
+    -0.666666666667f,
+    -0.333333333333f,
+     0.0f,
+     0.333333333333f,
+     0.666666666667f,
+     1.0f
 };
 
 // Forward declarations
@@ -743,6 +763,78 @@ float3 getHexahedronReferencePoint(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Complete Q6 scalar field in native Gmsh local-node ordering.
+//
+// coefficients[m] and HEX343_NODE_IJK[m] use the same Gmsh local DOF.
+// No CPU permutation is performed.
+// ---------------------------------------------------------------------------
+static __forceinline__ __device__
+float evaluateGmshHex343Field(
+    const float* coefficients,
+    const float3 ref)
+{
+    float basisG[7];
+    float basisH[7];
+    float basisR[7];
+
+    #pragma unroll
+    for(int index = 0;
+        index < 7;
+        ++index)
+    {
+        basisG[index] =
+            lagrangeBasis1D(
+                ref.x,
+                index,
+                NODES_1D_ORDER6,
+                7);
+
+        basisH[index] =
+            lagrangeBasis1D(
+                ref.y,
+                index,
+                NODES_1D_ORDER6,
+                7);
+
+        basisR[index] =
+            lagrangeBasis1D(
+                ref.z,
+                index,
+                NODES_1D_ORDER6,
+                7);
+    }
+
+    float result = 0.f;
+
+    for(int localDof = 0;
+        localDof < 343;
+        ++localDof)
+    {
+        // const int i =
+        //     HEX343_NODE_IJK[localDof][0];
+
+        // const int j =
+        //     HEX343_NODE_IJK[localDof][1];
+
+        // const int k =
+        //     HEX343_NODE_IJK[localDof][2];
+
+        const int i = HEX343_LIBMESH_NODE_IJK[localDof][0];
+        const int j = HEX343_LIBMESH_NODE_IJK[localDof][1];
+        const int k = HEX343_LIBMESH_NODE_IJK[localDof][2];
+
+        const float shapeValue =
+            basisG[i]
+          * basisH[j]
+          * basisR[k];
+
+        result += coefficients[localDof] * shapeValue;
+    }
+
+    return result;
+}
+
 static __forceinline__ __device__
 float evaluateLinearHexField(
     const float* coefficients,
@@ -834,6 +926,18 @@ float evaluateHexahedralElementField(
                 return evaluateLinearHexField(coefficients, ref);
             }
 
+            case 6:
+            {
+                if(field.dofsPerCell != 343)
+                {
+                    return 0.f;
+                }
+
+                return evaluateGmshHex343Field(
+                    coefficients,
+                    ref);
+            }
+
             default:
                 return evaluateLinearHexField(coefficients, ref);
         }
@@ -870,6 +974,13 @@ float evaluateHexahedralElementField(
             float N[64];
             hexNShapeFunctions(ref.x, ref.y, ref.z, HEX64_NODE_IJK, NODES_1D_ORDER3, 4, 64, N);
             for(int i = 0; i < 64; ++i) valHighOrder += N[i] * coefficients[i];
+        }
+        else if(field.fieldOrder == 6 && field.dofsPerCell == 343)
+        {
+            valHighOrder =
+                evaluateGmshHex343Field(
+                    coefficients,
+                    ref);
         }
         else
         {
